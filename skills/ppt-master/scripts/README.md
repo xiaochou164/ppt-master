@@ -1393,8 +1393,9 @@ Install dependencies:
 
 ```bash
 pip install -r requirements.txt
-# Or install individually
-pip install python-pptx
+# Optional Office-compat PNG renderer for SVG export:
+# pip install cairosvg
+# or: pip install svglib reportlab
 ```
 
 ## Troubleshooting

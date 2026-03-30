@@ -238,6 +238,23 @@ class ProjectManager:
         )
 
     def _import_url(self, url: str, markdown_path: Path) -> None:
+        """Import URL content using robust multi-strategy fetcher."""
+        # Try the new robust fetcher first
+        try:
+            from web_fetcher import fetch_to_markdown
+            content = fetch_to_markdown(url, output_path=None, verbose=True)
+            if content and len(content.strip()) > 100:
+                markdown_path.write_text(content, encoding="utf-8")
+                print(f"   [OK] Saved: {markdown_path}")
+                return
+            # Fall through to legacy methods if content too short
+            print("   [WARN] Robust fetcher returned minimal content, trying legacy methods...")
+        except ImportError:
+            print("   [INFO] web_fetcher not available, using legacy fetchers...")
+        except Exception as e:
+            print(f"   [WARN] Robust fetcher failed: {e}, trying legacy methods...")
+
+        # Legacy fallback: use existing web_to_md scripts
         host = urlparse(url).netloc.lower()
         if any(keyword in host for keyword in WECHAT_HOST_KEYWORDS):
             command = ["node", str(TOOLS_DIR / "web_to_md.cjs"), url, "-o", str(markdown_path)]

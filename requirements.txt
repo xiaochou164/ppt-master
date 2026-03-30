@@ -16,18 +16,20 @@
 # 默认使用 Office 兼容模式（PNG + SVG 双格式），支持所有 Office 版本
 python-pptx>=0.6.21
 
-# Office compatibility dependencies (choose one, CairoSVG preferred)
-# Office 兼容模式依赖（二选一，优先使用 cairosvg）
+# Office compatibility PNG renderer (optional, install on demand)
+# Office 兼容模式 PNG 渲染器（可选，按需安装）
 # Converts SVG to PNG fallback images for Office LTSC 2021 etc.
 # 用于将 SVG 转换为 PNG 后备图片，确保 Office LTSC 2021 等版本正常显示
 #
-# Option A / 方案 A: CairoSVG (recommended / 推荐, ~25MB, full gradient/filter support)
-#   pip install cairosvg
-#   macOS: brew install cairo
+# This is NOT required for the default web console, model testing, or native-shapes export.
+# 以下依赖不是前端、本地控制台、模型测试或原生形状导出的必需项。
 #
-# Option B / 方案 B: svglib (lightweight / 轻量, ~5MB, some gradients may be lost)
-svglib>=1.5.0
-reportlab>=4.0.0
+# Option A / 方案 A: CairoSVG (recommended / 推荐, better gradient/filter support)
+#   pip install cairosvg
+#   macOS may also require: brew install cairo
+#
+# Option B / 方案 B: svglib + reportlab (fallback / 备选，部分渐变可能丢失)
+#   pip install svglib reportlab
 
 # ─────────────────────────────────────────────────────────────
 # PDF to Markdown tool / PDF 转 Markdown 工具 (skills/ppt-master/scripts/pdf_to_md.py)
@@ -62,6 +64,16 @@ numpy>=1.20.0
 # ─────────────────────────────────────────────────────────────
 requests>=2.31.0
 beautifulsoup4>=4.12.0
+
+# ─────────────────────────────────────────────────────────────
+# Robust web fetcher / 增强网页抓取 (skills/ppt-master/scripts/web_fetcher.py)
+# ─────────────────────────────────────────────────────────────
+# Optional: JavaScript rendering for SPAs (单页应用 JS 渲染)
+# playwright>=1.40.0
+# After installing playwright, run: playwright install chromium
+
+# Optional: Article extraction (文章内容提取)
+# readability-lxml>=0.8.1
 
 # ─────────────────────────────────────────────────────────────
 # AI image generation tool / AI 图片生成工具 (skills/ppt-master/scripts/image_gen.py)

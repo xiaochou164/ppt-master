@@ -137,6 +137,11 @@ pip install -r requirements.txt
 ```
 
 > 如遇权限问题，可使用 `pip install --user -r requirements.txt` 或在虚拟环境中安装。
+>
+> 对于本地前端、模型测试和原生形状 PPT 导出，安装 `requirements.txt` 即可。
+> 如果还需要在 SVG 导出时生成 Office 兼容 PNG 后备图，请额外安装一个可选渲染器：
+> `pip install cairosvg`（推荐），或 `pip install svglib reportlab`。
+> 在 macOS 上，CairoSVG 可能还需要先执行 `brew install cairo`。
 
 ### 3. 打开 AI 编辑器
 
@@ -210,6 +215,29 @@ export IMAGE_MODEL="gemini-3.1-flash-image-preview"
 > 💡 **向后兼容**：`GEMINI_API_KEY` / `GEMINI_BASE_URL` 以及 `OPENAI_API_KEY` / `OPENAI_BASE_URL` 仍然有效。未设置 `IMAGE_BACKEND` 时，系统会根据已配置的 key 自动检测后端。
 
 > 💡 **AI 生成图片建议**：如需 AI 生成配图，建议在 [Gemini](https://gemini.google.com/) 中生成后选择 **Download full size** 下载，分辨率比 Antigravity 直接生成的更高。Gemini 生成的图片右下角会有星星水印，可使用 [gemini-watermark-remover](https://github.com/journey-ad/gemini-watermark-remover) 或本项目的 `skills/ppt-master/scripts/gemini_watermark_remover.py` 去除。
+
+### 6. 本地 Web 控制台
+
+如果你更喜欢在浏览器中操作本地工作流，可以启动内置的 Web 控制台：
+
+```bash
+python3 webapp/server.py
+```
+
+然后打开 `http://127.0.0.1:8765`。
+
+控制台支持以下功能：
+
+- **项目管理**：创建项目、导入源文件（本地文件、URL、粘贴文本）
+- **模板选择**：浏览并应用设计模板
+- **策略师阶段**：AI 驱动的内容分析与设计规范生成
+- **AI 图片生成**：直接在浏览器中生成配图（支持 Gemini/OpenAI 后端）
+- **SVG 页面生成**：流式生成 SVG 幻灯片，实时显示进度（SSE）
+- **重新生成与删除**：重新生成指定页面或全部 SVG，删除不需要的页面
+- **讲稿生成**：通过 LLM API 生成 `notes/total.md`
+- **后处理**：按顺序执行拆分备注、SVG 规范化、导出 PPTX
+- **预览与下载**：预览 SVG 页面、在弹窗中查看 Markdown 文档、下载 PPTX 产物
+- **模型配置**：管理多个文本和图片模型配置（OpenAI、Gemini 等）
 
 ---
 

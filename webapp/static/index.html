@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PPT Master Web</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <div class="ambient ambient-a"></div>
+  <div class="ambient ambient-b"></div>
+
+  <header class="hero">
+    <div class="hero-copy">
+      <h1>PPT Master Web</h1>
+    </div>
+    <div class="hero-actions">
+      <select id="themeSelect" class="theme-select">
+        <option value="light">浅色</option>
+        <option value="warm">暖色</option>
+        <option value="dark">深色</option>
+      </select>
+      <button id="openProjectManagerButton" class="button button-ghost">项目管理</button>
+      <button id="openModelConfigButton" class="button button-ghost">模型配置</button>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="panel flow-shell">
+      <div id="projectContext" class="project-context"></div>
+      <div id="flash" class="flash hidden"></div>
+    </section>
+
+    <section class="workspace">
+      <div class="workspace-left">
+        <nav id="stepRail" class="step-rail" aria-label="流程步骤"></nav>
+        <section class="panel stage-panel">
+          <div class="stage-head">
+            <p id="stageKicker" class="section-kicker">Step</p>
+            <h2 id="stageTitle">加载中</h2>
+            <p id="stageDescription" class="stage-description">正在获取项目状态。</p>
+          </div>
+          <div id="stageBody" class="stage-body"></div>
+        </section>
+      </div>
+
+      <aside class="panel activity-panel">
+        <div class="section-head section-head-inline">
+          <div>
+            <p class="section-kicker">Log</p>
+            <h2>操作日志</h2>
+          </div>
+          <button id="clearLogButton" class="button button-ghost button-small" type="button">清空</button>
+        </div>
+        <pre id="logOutput" class="log-output">等待操作…</pre>
+      </aside>
+    </section>
+  </main>
+
+  <div id="modelConfigModal" class="modal hidden" aria-hidden="true">
+    <div id="modelConfigBackdrop" class="modal-backdrop"></div>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="modelConfigTitle">
+      <div class="modal-head">
+        <div>
+          <p class="section-kicker">Model</p>
+          <h2 id="modelConfigTitle">大模型配置</h2>
+        </div>
+        <button id="closeModelConfigButton" class="button button-ghost">关闭</button>
+      </div>
+      <div class="modal-layout">
+        <section class="modal-sidebar">
+          <div class="section-head">
+            <p class="section-kicker">Profiles</p>
+            <h2>已保存配置</h2>
+          </div>
+          <div id="modalProfileSummary" class="helper">当前还没有可用配置。</div>
+          <div id="modelProfileList" class="profile-list"></div>
+          <button id="createProfileButton" type="button" class="button button-ghost profile-add-button">新增配置</button>
+        </section>
+
+        <section class="modal-main">
+          <form id="modelConfigForm" class="stack">
+            <label class="field">
+              <span>配置名称</span>
+              <input type="text" name="name" id="modalProfileNameInput" placeholder="例如：OpenAI 生产 / Gemini 测试">
+            </label>
+            <div class="two-col">
+              <label class="field">
+                <span>后端</span>
+                <select name="backend" id="modalBackendSelect">
+                  <option value="openai">OpenAI Compatible</option>
+                  <option value="gemini">Gemini</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>模型下拉</span>
+                <select name="model_select" id="modalFetchedModelSelect">
+                  <option value="">先获取模型列表</option>
+                </select>
+              </label>
+            </div>
+            <label class="field">
+              <span>Base URL</span>
+              <input type="text" name="base_url" id="modalBaseUrlInput" placeholder="可选，用于代理或兼容接口">
+            </label>
+            <label class="field">
+              <span id="modalApiKeyLabel">API Key</span>
+              <input type="password" name="api_key" id="modalApiKeyInput" placeholder="留空则保持当前 key 不变">
+            </label>
+            <div class="action-row">
+              <button id="fetchModelsButton" type="button" class="button button-ghost">获取模型列表</button>
+              <button id="testModelButton" type="button" class="button button-ghost">测试模型</button>
+            </div>
+            <p id="modelFetchHint" class="helper">默认用下拉选择模型，也可以手动输入。</p>
+            <p id="modelTestHint" class="helper">测试会发送一条极短文本请求，验证当前配置是否可用。</p>
+            <pre id="modalTestOutput" class="status-log modal-test-output hidden"></pre>
+            <label class="field">
+              <span>手动模型 ID</span>
+              <input type="text" name="manual_model" id="modalManualModelInput" placeholder="可选；不填则使用上面的下拉选择">
+            </label>
+            <div class="action-row">
+              <button type="submit" class="button button-secondary">保存配置</button>
+            </div>
+          </form>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <div id="svgPreviewModal" class="modal hidden" aria-hidden="true">
+    <div id="svgPreviewBackdrop" class="modal-backdrop"></div>
+    <div class="modal-dialog svg-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="svgPreviewTitle">
+      <div class="modal-head">
+        <div>
+          <p class="section-kicker">Preview</p>
+          <h2 id="svgPreviewTitle">SVG 预览</h2>
+        </div>
+        <button id="closeSvgPreviewButton" class="button button-ghost">关闭</button>
+      </div>
+      <div class="svg-preview-container">
+        <button id="svgPrevButton" class="svg-nav-button svg-nav-prev" aria-label="上一页">‹</button>
+        <div class="svg-preview-content">
+          <object id="svgPreviewObject" type="image/svg+xml" data="">
+            <img id="svgPreviewImg" src="" alt="SVG Preview">
+          </object>
+        </div>
+        <button id="svgNextButton" class="svg-nav-button svg-nav-next" aria-label="下一页">›</button>
+      </div>
+      <div class="svg-preview-footer">
+        <span id="svgPageIndicator">第 1 页 / 共 1 页</span>
+        <a id="svgOpenNewButton" class="button button-ghost" href="" target="_blank" rel="noreferrer">在新标签页打开</a>
+      </div>
+    </div>
+  </div>
+
+  <div id="imageModelModal" class="modal hidden" aria-hidden="true">
+    <div id="imageModelBackdrop" class="modal-backdrop"></div>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="imageModelTitle">
+      <div class="modal-head">
+        <div>
+          <p class="section-kicker">Image Model</p>
+          <h2 id="imageModelTitle">图片模型配置</h2>
+        </div>
+        <button id="closeImageModelButton" class="button button-ghost">关闭</button>
+      </div>
+      <div class="modal-layout">
+        <section class="modal-sidebar">
+          <div class="section-head">
+            <p class="section-kicker">Profiles</p>
+            <h2>已保存配置</h2>
+          </div>
+          <div id="imageModalProfileSummary" class="helper">当前还没有可用配置。</div>
+          <div id="imageModelProfileList" class="profile-list"></div>
+          <button id="createImageProfileButton" type="button" class="button button-ghost profile-add-button">新增配置</button>
+        </section>
+
+        <section class="modal-main">
+          <form id="imageModelForm" class="stack">
+            <div class="status-card status-info" style="margin-bottom: 12px;">
+              <p class="helper" style="margin: 0;">图片生成可复用全局大模型配置。点击下方按钮自动填充。</p>
+              <button type="button" id="copyFromGlobalConfigButton" class="button button-ghost" style="margin-top: 8px;">从全局配置复制</button>
+            </div>
+            <label class="field">
+              <span>配置名称</span>
+              <input type="text" name="name" id="imageProfileNameInput" placeholder="例如：Gemini 图片 / DALL-E">
+            </label>
+            <div class="two-col">
+              <label class="field">
+                <span>后端</span>
+                <select name="backend" id="imageBackendSelect">
+                  <option value="gemini">Gemini</option>
+                  <option value="openai">OpenAI (DALL-E)</option>
+                  <option value="siliconflow">SiliconFlow (硅基流动)</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>模型</span>
+                <select name="model_select" id="imageModelSelect">
+                  <option value="">使用默认模型</option>
+                </select>
+              </label>
+            </div>
+            <label class="field">
+              <span>手动模型 ID（可选）</span>
+              <input type="text" name="manual_model" id="imageManualModelInput" placeholder="留空则使用上面的下拉选择">
+            </label>
+            <label class="field">
+              <span>Base URL</span>
+              <input type="text" name="base_url" id="imageBaseUrlInput" placeholder="可选，用于代理或兼容接口">
+            </label>
+            <label class="field">
+              <span id="imageApiKeyLabel">API Key</span>
+              <input type="password" name="api_key" id="imageApiKeyInput" placeholder="留空则保持当前 key 不变">
+            </label>
+            <div class="action-row">
+              <button id="testImageButton" type="button" class="button button-ghost">测试配置</button>
+            </div>
+            <p id="imageTestHint" class="helper">测试会生成一张小图片验证配置是否可用。</p>
+            <pre id="imageTestOutput" class="status-log modal-test-output hidden"></pre>
+            <div class="action-row">
+              <button type="submit" class="button button-secondary">保存配置</button>
+            </div>
+          </form>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <div id="docPreviewModal" class="modal hidden" aria-hidden="true">
+    <div id="docPreviewBackdrop" class="modal-backdrop"></div>
+    <div class="modal-dialog doc-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="docPreviewTitle">
+      <div class="modal-head">
+        <div>
+          <p class="section-kicker">Preview</p>
+          <h2 id="docPreviewTitle">文档预览</h2>
+        </div>
+        <button id="closeDocPreviewButton" class="button button-ghost">关闭</button>
+      </div>
+      <div class="doc-preview-content">
+        <pre id="docPreviewText" class="doc-preview-text"></pre>
+      </div>
+      <div class="doc-preview-footer">
+        <a id="docPreviewOpenButton" class="button button-secondary" href="" target="_blank" rel="noreferrer">在新标签页打开</a>
+      </div>
+    </div>
+  </div>
+
+  <div id="projectManagerModal" class="modal hidden" aria-hidden="true">
+    <div id="projectManagerBackdrop" class="modal-backdrop"></div>
+    <div class="modal-dialog project-manager-dialog" role="dialog" aria-modal="true" aria-labelledby="projectManagerTitle">
+      <div class="modal-head">
+        <div>
+          <p class="section-kicker">Projects</p>
+          <h2 id="projectManagerTitle">项目管理</h2>
+        </div>
+        <button id="closeProjectManagerButton" class="button button-ghost">关闭</button>
+      </div>
+      <div class="project-manager-layout">
+        <div class="project-manager-list">
+          <div class="section-head">
+            <p class="section-kicker">All</p>
+            <h2>项目列表</h2>
+          </div>
+          <label class="field project-manager-search">
+            <input id="pmSearchInput" type="text" placeholder="搜索项目...">
+          </label>
+          <div id="pmProjectList" class="pm-list"></div>
+        </div>
+        <div class="project-manager-detail">
+          <div class="section-head">
+            <p class="section-kicker">Detail</p>
+            <h2>项目详情</h2>
+          </div>
+          <div id="pmProjectDetail" class="pm-detail">
+            <p class="helper">选择左侧项目查看详情</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js" defer></script>
+</body>
+</html>

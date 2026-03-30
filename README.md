@@ -138,6 +138,11 @@ pip install -r requirements.txt
 ```
 
 > If you encounter permission issues, use `pip install --user -r requirements.txt` or install in a virtual environment.
+>
+> For the local web console, model testing, and native-shapes PPT export, `requirements.txt` is enough.
+> If you also need Office compatibility PNG fallbacks during SVG export, install one optional renderer separately:
+> `pip install cairosvg` (recommended), or `pip install svglib reportlab`.
+> On macOS, CairoSVG may additionally require `brew install cairo`.
 
 ### 3. Open AI Editor
 
@@ -212,6 +217,29 @@ export IMAGE_MODEL="gemini-3.1-flash-image-preview"
 > 💡 **Legacy support**: `GEMINI_API_KEY` / `GEMINI_BASE_URL` and `OPENAI_API_KEY` / `OPENAI_BASE_URL` still work for backward compatibility. If `IMAGE_BACKEND` is not set, the system auto-detects based on available keys.
 
 > 💡 **AI Image Generation Tip**: For AI-generated images, we recommend generating them in [Gemini](https://gemini.google.com/) and selecting **Download full size** for higher resolution. Gemini images have a star watermark in the bottom right corner, which can be removed using [gemini-watermark-remover](https://github.com/journey-ad/gemini-watermark-remover) or this project's `skills/ppt-master/scripts/gemini_watermark_remover.py`.
+
+### 6. Local Web Console
+
+If you prefer operating the local workflow in a browser, start the built-in web console:
+
+```bash
+python3 webapp/server.py
+```
+
+Then open `http://127.0.0.1:8765`.
+
+The console supports:
+
+- **Project Management**: Create projects, import sources (local files, URLs, pasted text)
+- **Template Selection**: Browse and apply design templates
+- **Strategist Phase**: AI-powered content analysis and design specification generation
+- **AI Image Generation**: Generate images directly in the browser (Gemini/OpenAI backends)
+- **SVG Page Generation**: Stream-generate SVG slides with real-time progress (SSE)
+- **Regenerate & Delete**: Regenerate specific pages or all SVG slides; delete unwanted pages
+- **Speaker Notes**: Generate `notes/total.md` via LLM API
+- **Post-processing**: Run Split Notes, Finalize SVG, Export PPTX in sequence
+- **Preview & Download**: Preview SVG pages, view Markdown documents in popup, download PPTX outputs
+- **Model Configuration**: Manage multiple text and image model profiles (OpenAI, Gemini, etc.)
 
 ---
 

@@ -992,7 +992,9 @@ Compatibility mode (enabled by default):
     - Automatically generates PNG fallback images, SVG embedded as extension
     - Compatible with all Office versions (including Office LTSC 2021)
     - Newer Office still displays SVG (editable), older versions display PNG
-    - Requires svglib: pip install svglib reportlab
+    - Optional PNG renderer for Office compatibility mode:
+      pip install cairosvg
+      or: pip install svglib reportlab
     - Use --no-compat to disable (only Office 2019+ supported)
 
 Speaker notes (enabled by default):

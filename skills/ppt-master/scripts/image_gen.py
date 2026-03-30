@@ -59,12 +59,12 @@ def _resolve_backend():
         import backend_gemini
         return backend_gemini, "gemini"
 
-    if backend_name == "openai":
+    if backend_name in ("openai", "siliconflow"):
         import backend_openai
-        return backend_openai, "openai"
+        return backend_openai, backend_name
 
-    if backend_name and backend_name not in ("gemini", "openai"):
-        print(f"Error: Unknown IMAGE_BACKEND='{backend_name}'. Supported: gemini, openai")
+    if backend_name and backend_name not in ("gemini", "openai", "siliconflow"):
+        print(f"Error: Unknown IMAGE_BACKEND='{backend_name}'. Supported: gemini, openai, siliconflow")
         sys.exit(1)
 
     # Auto-detect: IMAGE_BACKEND not set
@@ -81,7 +81,7 @@ def _resolve_backend():
         "Error: No image backend configured.\n"
         "\n"
         "Set environment variables:\n"
-        "  IMAGE_BACKEND=gemini    # or openai\n"
+        "  IMAGE_BACKEND=gemini    # or openai, siliconflow\n"
         "  IMAGE_API_KEY=your-key\n"
         "\n"
         "Or for legacy Gemini usage:\n"
@@ -123,8 +123,8 @@ def main():
         help="Model name. Default depends on backend."
     )
     parser.add_argument(
-        "--backend", "-b", default=None, choices=["gemini", "openai"],
-        help="Override IMAGE_BACKEND env var."
+        "--backend", "-b", default=None, choices=["gemini", "openai", "siliconflow"],
+        help="Override IMAGE_BACKEND env var. Options: gemini, openai, siliconflow."
     )
 
     args = parser.parse_args()
