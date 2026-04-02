@@ -11,17 +11,46 @@
   <div class="ambient ambient-b"></div>
 
   <header class="hero">
-    <div class="hero-copy">
-      <h1>PPT Master Web</h1>
-    </div>
-    <div class="hero-actions">
-      <select id="themeSelect" class="theme-select">
-        <option value="light">浅色</option>
-        <option value="warm">暖色</option>
-        <option value="dark">深色</option>
-      </select>
-      <button id="openProjectManagerButton" class="button button-ghost">项目管理</button>
-      <button id="openModelConfigButton" class="button button-ghost">模型配置</button>
+    <div class="hero-shell panel">
+      <div class="hero-copy">
+        <p class="eyebrow">AI Presentation Workflow</p>
+        <h1>PPT Master Web</h1>
+        <p class="hero-text">把项目上下文、关键步骤和导出状态收拢到一个清晰的工作台里，减少跳转和流程迷失。</p>
+        <div class="hero-stats" aria-label="系统概览">
+          <div class="hero-stat">
+            <span class="hero-stat-value" id="projectCount">0</span>
+            <span class="hero-stat-label">项目</span>
+          </div>
+          <div class="hero-stat">
+            <span class="hero-stat-value" id="formatCount">0</span>
+            <span class="hero-stat-label">画布格式</span>
+          </div>
+          <div class="hero-stat">
+            <span class="hero-stat-value" id="stepCount">7</span>
+            <span class="hero-stat-label">流程步骤</span>
+          </div>
+        </div>
+      </div>
+      <div class="hero-actions">
+        <div class="hero-actions-group hero-actions-group-meta">
+          <div id="userBadge" class="badge badge-strong hidden"></div>
+          <button id="openAdminPanelButton" class="button button-ghost hidden" type="button">用户管理</button>
+          <button id="logoutButton" class="button button-ghost hidden" type="button">退出登录</button>
+        </div>
+        <div class="hero-actions-group">
+          <label class="theme-picker" for="themeSelect">
+            <span>主题</span>
+            <select id="themeSelect" class="theme-select">
+              <option value="light">浅色</option>
+              <option value="warm">暖色</option>
+              <option value="dark">深色</option>
+            </select>
+          </label>
+          <button id="openProjectManagerButton" class="button button-ghost" type="button">项目管理</button>
+          <button id="openTemplateManagerButton" class="button button-ghost" type="button">模板管理</button>
+          <button id="openModelConfigButton" class="button button-secondary" type="button">模型配置</button>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -52,7 +81,7 @@
           </div>
           <button id="clearLogButton" class="button button-ghost button-small" type="button">清空</button>
         </div>
-        <pre id="logOutput" class="log-output">等待操作…</pre>
+        <pre id="logOutput" class="log-output" role="log" aria-live="polite" aria-label="操作日志">等待操作…</pre>
       </aside>
     </section>
   </main>
@@ -176,9 +205,9 @@
 
         <section class="modal-main">
           <form id="imageModelForm" class="stack">
-            <div class="status-card status-info" style="margin-bottom: 12px;">
-              <p class="helper" style="margin: 0;">图片生成可复用全局大模型配置。点击下方按钮自动填充。</p>
-              <button type="button" id="copyFromGlobalConfigButton" class="button button-ghost" style="margin-top: 8px;">从全局配置复制</button>
+            <div class="status-card status-info info-banner">
+              <p class="helper">图片生成可复用全局大模型配置。点击下方按钮自动填充。</p>
+              <button type="button" id="copyFromGlobalConfigButton" class="button button-ghost">从全局配置复制</button>
             </div>
             <label class="field">
               <span>配置名称</span>
@@ -273,6 +302,153 @@
           </div>
           <div id="pmProjectDetail" class="pm-detail">
             <p class="helper">选择左侧项目查看详情</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="adminPanelModal" class="modal hidden" aria-hidden="true">
+    <div id="adminPanelBackdrop" class="modal-backdrop"></div>
+    <div class="modal-dialog project-manager-dialog" role="dialog" aria-modal="true" aria-labelledby="adminPanelTitle">
+      <div class="modal-head">
+        <div>
+          <p class="section-kicker">Admin</p>
+          <h2 id="adminPanelTitle">用户与审计</h2>
+        </div>
+        <button id="closeAdminPanelButton" class="button button-ghost">关闭</button>
+      </div>
+      <div class="project-manager-layout">
+        <div class="project-manager-list">
+          <div class="section-head">
+            <p class="section-kicker">Users</p>
+            <h2>用户列表</h2>
+          </div>
+          <div class="admin-toolbar">
+            <label class="field admin-filter">
+              <span>搜索</span>
+              <input id="adminUserSearchInput" type="text" placeholder="按邮箱 / 用户名 / 显示名搜索">
+            </label>
+            <div class="two-col admin-filter-row">
+              <label class="field admin-filter">
+                <span>角色</span>
+                <select id="adminRoleFilter">
+                  <option value="">全部</option>
+                  <option value="admin">admin</option>
+                  <option value="user">user</option>
+                </select>
+              </label>
+              <label class="field admin-filter">
+                <span>状态</span>
+                <select id="adminStatusFilter">
+                  <option value="">全部</option>
+                  <option value="active">启用</option>
+                  <option value="disabled">禁用</option>
+                </select>
+              </label>
+            </div>
+          </div>
+          <div id="adminUsersList" class="pm-list"></div>
+          <div class="pm-detail-actions admin-pagination">
+            <button id="adminPrevPage" class="button button-ghost button-small" type="button">上一页</button>
+            <span id="adminPageIndicator" class="helper">第 1 页</span>
+            <button id="adminNextPage" class="button button-ghost button-small" type="button">下一页</button>
+          </div>
+        </div>
+        <div class="project-manager-detail">
+          <div class="section-head">
+            <p class="section-kicker">Detail</p>
+            <h2>用户详情与审计</h2>
+          </div>
+          <div id="adminUserDetail" class="pm-detail">
+            <p class="helper">选择左侧用户查看详情</p>
+          </div>
+          <div class="section-head" style="margin-top: 16px;">
+            <p class="section-kicker">Audit</p>
+            <h2>审计日志</h2>
+          </div>
+          <div id="adminAuditSummary" class="badge-row admin-audit-summary"></div>
+            <div class="admin-toolbar">
+              <div class="two-col admin-filter-row">
+                <label class="field admin-filter">
+                  <span>动作</span>
+                  <input id="adminAuditActionInput" type="text" placeholder="如 login / update / delete">
+                </label>
+                <label class="field admin-filter">
+                  <span>资源类型</span>
+                  <input id="adminAuditResourceInput" type="text" placeholder="如 project / user / session">
+                </label>
+              </div>
+              <div class="two-col admin-filter-row">
+                <label class="field admin-filter">
+                  <span>开始时间</span>
+                  <input id="adminAuditStartInput" type="datetime-local">
+                </label>
+                <label class="field admin-filter">
+                  <span>结束时间</span>
+                  <input id="adminAuditEndInput" type="datetime-local">
+                </label>
+              </div>
+              <div class="badge-row admin-audit-actions">
+                <button id="adminAuditQuick24h" class="button button-ghost button-small" type="button">最近 24 小时</button>
+                <button id="adminAuditQuick7d" class="button button-ghost button-small" type="button">最近 7 天</button>
+                <button id="adminAuditClear" class="button button-ghost button-small" type="button">清空条件</button>
+                <button id="adminAuditCopy" class="button button-ghost button-small" type="button">复制当前</button>
+                <button id="adminAuditExport" class="button button-secondary button-small" type="button">导出 CSV</button>
+              </div>
+            </div>
+          <div id="adminAuditLog" class="log-output admin-audit-list">等待加载…</div>
+          <div class="pm-detail-actions admin-pagination">
+            <button id="adminAuditPrevPage" class="button button-ghost button-small" type="button">上一页</button>
+            <span id="adminAuditPageIndicator" class="helper">第 1 页</span>
+            <button id="adminAuditNextPage" class="button button-ghost button-small" type="button">下一页</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="templateManagerModal" class="modal hidden" aria-hidden="true">
+    <div id="templateManagerBackdrop" class="modal-backdrop"></div>
+    <div class="modal-dialog project-manager-dialog" role="dialog" aria-modal="true" aria-labelledby="templateManagerTitle">
+      <div class="modal-head">
+        <div>
+          <p class="section-kicker">Templates</p>
+          <h2 id="templateManagerTitle">模板管理</h2>
+        </div>
+        <button id="closeTemplateManagerButton" class="button button-ghost">关闭</button>
+      </div>
+      <div class="project-manager-layout">
+        <div class="project-manager-list">
+          <div class="section-head">
+            <p class="section-kicker">All</p>
+            <h2>模板列表</h2>
+          </div>
+          <div class="admin-toolbar">
+            <label class="field">
+              <input id="tmSearchInput" type="text" placeholder="搜索模板...">
+            </label>
+            <label class="field">
+              <select id="tmCategoryFilter">
+                <option value="">全部分类</option>
+                <option value="brand">品牌风格</option>
+                <option value="general">通用风格</option>
+                <option value="scenario">场景专用</option>
+                <option value="government">政府企业</option>
+                <option value="special">特殊风格</option>
+              </select>
+            </label>
+          </div>
+          <div id="tmTemplateList" class="pm-list"></div>
+          <button id="tmShowUploadButton" class="button button-secondary" type="button" style="width:100%;margin-top:10px;">上传新模板</button>
+        </div>
+        <div class="project-manager-detail">
+          <div class="section-head">
+            <p class="section-kicker">Detail</p>
+            <h2>模板详情</h2>
+          </div>
+          <div id="tmTemplateDetail" class="pm-detail">
+            <p class="helper">选择左侧模板查看详情</p>
           </div>
         </div>
       </div>

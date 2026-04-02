@@ -221,23 +221,51 @@ export IMAGE_MODEL="gemini-3.1-flash-image-preview"
 如果你更喜欢在浏览器中操作本地工作流，可以启动内置的 Web 控制台：
 
 ```bash
-python3 webapp/server.py
+.venv/bin/python webapp/server.py
 ```
 
 然后打开 `http://127.0.0.1:8765`。
 
+如果还没有虚拟环境或依赖未安装，先执行：
+
+```bash
+python3 -m pip install -r requirements.txt
+```
+
+如果要接入 Authentik 统一认证，建议同时配置以下环境变量：
+
+```bash
+AUTH_ENABLED=true
+AUTHENTIK_ISSUER_URL=https://auth.example.com/application/o/ppt-master
+AUTHENTIK_CLIENT_ID=your-client-id
+AUTHENTIK_CLIENT_SECRET=your-client-secret
+AUTHENTIK_ADMIN_GROUPS=ppt-master-admins
+AUTHENTIK_SYNC_MODE=if_present
+PPT_MASTER_PUBLIC_BASE_URL=http://127.0.0.1:8765
+SESSION_SECRET=replace-with-a-random-secret
+APP_ENCRYPTION_KEY=replace-with-a-random-secret
+```
+
+说明：
+
+- `PPT_MASTER_PUBLIC_BASE_URL` 会决定回调地址，最终回调固定为 `/auth/callback`
+- `AUTHENTIK_ADMIN_GROUPS` 中的组成员会自动映射为本地 `admin`
+- `AUTHENTIK_SYNC_MODE` 支持 `strict`（强制覆盖）、`if_present`（仅当 OIDC 返回 groups 时更新）、`disabled`（不自动同步）
+- 当 `AUTH_ENABLED=true` 但配置不完整时，登录页会直接显示缺失项，方便排查
+
 控制台支持以下功能：
 
-- **项目管理**：创建项目、导入源文件（本地文件、URL、粘贴文本）
-- **模板选择**：浏览并应用设计模板
-- **策略师阶段**：AI 驱动的内容分析与设计规范生成
+- **项目管理**：创建项目、导入源文件（本地文件、URL、粘贴文本）、浏览已导入来源
+- **模板管理**：浏览、上传、删除设计模板，将模板应用到项目
+- **策略师阶段**：AI 驱动的内容分析与设计规范生成，支持分组折叠的八项确认
 - **AI 图片生成**：直接在浏览器中生成配图（支持 Gemini/OpenAI 后端）
-- **SVG 页面生成**：流式生成 SVG 幻灯片，实时显示进度（SSE）
+- **SVG 页面生成**：流式生成 SVG 幻灯片，实时进度条与百分比显示（SSE）
 - **重新生成与删除**：重新生成指定页面或全部 SVG，删除不需要的页面
 - **讲稿生成**：通过 LLM API 生成 `notes/total.md`
 - **后处理**：按顺序执行拆分备注、SVG 规范化、导出 PPTX
 - **预览与下载**：预览 SVG 页面、在弹窗中查看 Markdown 文档、下载 PPTX 产物
 - **模型配置**：管理多个文本和图片模型配置（OpenAI、Gemini 等）
+- **体验优化**：Flash 消息自动消失、步骤引导导航、骨架屏加载、表单行内验证、弹窗焦点陷阱、移动端响应式布局、键盘无障碍支持（Escape 关闭弹窗、Tab 焦点循环）
 
 ---
 

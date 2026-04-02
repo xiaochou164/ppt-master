@@ -81,6 +81,27 @@ function createDraft(profile = {}) {
 }
 
 const state = {
+  user: null,
+  admin: {
+    users: [],
+    logs: [],
+    isOpen: false,
+    selectedUserId: null,
+    userQuery: "",
+    roleFilter: "",
+    statusFilter: "",
+    page: 1,
+    pageSize: 20,
+    totalUsers: 0,
+    auditAction: "",
+    auditResource: "",
+    auditStart: "",
+    auditEnd: "",
+    auditPage: 1,
+    auditPageSize: 50,
+    totalLogs: 0,
+    userDetail: null,
+  },
   formats: [],
   steps: [],
   projects: [],
@@ -148,6 +169,7 @@ const state = {
   // Image generation state
   imageGeneration: {
     inProgress: false,
+    status: "",
     prompt: "",
     filename: "",
     aspectRatio: "16:9",
@@ -188,6 +210,18 @@ const state = {
     testMessage: "",
     testError: false,
     testOutput: "",
+  },
+  // Template manager state
+  templateManager: {
+    isOpen: false,
+    templates: [],
+    categories: {},
+    selectedTemplate: null,
+    searchQuery: "",
+    filterCategory: "",
+    deleteConfirm: null,
+    uploadMode: false,
+    uploadFiles: [],
   },
   busy: false,
 };
@@ -269,10 +303,49 @@ const elements = {
   imageTestHint: document.getElementById("imageTestHint"),
   imageTestOutput: document.getElementById("imageTestOutput"),
   copyFromGlobalConfigButton: document.getElementById("copyFromGlobalConfigButton"),
+  userBadge: document.getElementById("userBadge"),
+  logoutButton: document.getElementById("logoutButton"),
+  openAdminPanelButton: document.getElementById("openAdminPanelButton"),
+  adminPanelModal: document.getElementById("adminPanelModal"),
+  adminPanelBackdrop: document.getElementById("adminPanelBackdrop"),
+  closeAdminPanelButton: document.getElementById("closeAdminPanelButton"),
+  adminUsersList: document.getElementById("adminUsersList"),
+  adminAuditLog: document.getElementById("adminAuditLog"),
+  adminUserSearchInput: document.getElementById("adminUserSearchInput"),
+  adminRoleFilter: document.getElementById("adminRoleFilter"),
+  adminStatusFilter: document.getElementById("adminStatusFilter"),
+  adminPrevPage: document.getElementById("adminPrevPage"),
+  adminNextPage: document.getElementById("adminNextPage"),
+  adminPageIndicator: document.getElementById("adminPageIndicator"),
+  adminUserDetail: document.getElementById("adminUserDetail"),
+  adminAuditActionInput: document.getElementById("adminAuditActionInput"),
+  adminAuditResourceInput: document.getElementById("adminAuditResourceInput"),
+  adminAuditStartInput: document.getElementById("adminAuditStartInput"),
+  adminAuditEndInput: document.getElementById("adminAuditEndInput"),
+  adminAuditSummary: document.getElementById("adminAuditSummary"),
+  adminAuditQuick24h: document.getElementById("adminAuditQuick24h"),
+  adminAuditQuick7d: document.getElementById("adminAuditQuick7d"),
+  adminAuditClear: document.getElementById("adminAuditClear"),
+  adminAuditCopy: document.getElementById("adminAuditCopy"),
+  adminAuditExport: document.getElementById("adminAuditExport"),
+  adminAuditPrevPage: document.getElementById("adminAuditPrevPage"),
+  adminAuditNextPage: document.getElementById("adminAuditNextPage"),
+  adminAuditPageIndicator: document.getElementById("adminAuditPageIndicator"),
+  // Template manager elements
+  openTemplateManagerButton: document.getElementById("openTemplateManagerButton"),
+  closeTemplateManagerButton: document.getElementById("closeTemplateManagerButton"),
+  templateManagerModal: document.getElementById("templateManagerModal"),
+  templateManagerBackdrop: document.getElementById("templateManagerBackdrop"),
+  tmSearchInput: document.getElementById("tmSearchInput"),
+  tmCategoryFilter: document.getElementById("tmCategoryFilter"),
+  tmTemplateList: document.getElementById("tmTemplateList"),
+  tmTemplateDetail: document.getElementById("tmTemplateDetail"),
+  tmShowUploadButton: document.getElementById("tmShowUploadButton"),
 };
 
 async function apiFetch(path, options = {}) {
   const response = await fetch(path, {
+    credentials: "same-origin",
     headers: {
       "Content-Type": "application/json",
       ...(options.headers || {}),
@@ -282,12 +355,19 @@ async function apiFetch(path, options = {}) {
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
+    if (response.status === 401) {
+      window.location.href = "/login";
+      return {};
+    }
     const detail = data.error
+      || data.detail
       || data.stderr
       || data.stdout
       || (data.returncode ? `Command failed with exit code ${data.returncode}` : "")
       || `Request failed: ${response.status}`;
     const error = new Error(detail);
+    error.status = response.status;
+    error.path = path;
     error.payload = data;
     throw error;
   }
@@ -301,21 +381,49 @@ function setBusy(isBusy) {
   });
 }
 
+let flashTimer = null;
+
 function showFlash(message, type = "success") {
-  elements.flash.textContent = message;
+  if (flashTimer) {
+    clearTimeout(flashTimer);
+    flashTimer = null;
+  }
+  elements.flash.classList.remove("flash-dismissing");
+  elements.flash.innerHTML = "";
+  const textNode = document.createTextNode(message);
+  elements.flash.appendChild(textNode);
+  if (type === "error") {
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "flash-close";
+    closeBtn.setAttribute("aria-label", "关闭");
+    closeBtn.textContent = "\u00d7";
+    closeBtn.addEventListener("click", clearFlash);
+    elements.flash.appendChild(closeBtn);
+  }
   elements.flash.className = `flash flash-${type}`;
   elements.flash.classList.remove("hidden");
+  if (type === "success") {
+    flashTimer = setTimeout(() => {
+      elements.flash.classList.add("flash-dismissing");
+      setTimeout(clearFlash, 300);
+    }, 3000);
+  }
 }
 
 function clearFlash() {
+  if (flashTimer) {
+    clearTimeout(flashTimer);
+    flashTimer = null;
+  }
   elements.flash.className = "flash hidden";
-  elements.flash.textContent = "";
+  elements.flash.innerHTML = "";
 }
 
 function appendLog(title, payload) {
   const stamp = new Date().toLocaleTimeString("zh-CN", { hour12: false });
-  const divider = `\n[${stamp}] ${title}\n`;
-  elements.logOutput.textContent = `${divider}${payload}\n${elements.logOutput.textContent}`.trim();
+  const short = String(payload || "").split("\n")[0].trim().slice(0, 120);
+  const line = short ? `[${stamp}] ${title} — ${short}` : `[${stamp}] ${title}`;
+  elements.logOutput.textContent = `${line}\n${elements.logOutput.textContent}`.trim();
 }
 
 function escapeHtml(value) {
@@ -327,12 +435,131 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+// ============ Focus Trap ============
+let focusTrapState = { active: false, previousFocus: null, handler: null };
+
+function trapFocus(modalEl) {
+  if (!modalEl) return;
+  focusTrapState.previousFocus = document.activeElement;
+  focusTrapState.active = true;
+
+  const getFocusable = () => modalEl.querySelectorAll(
+    'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
+  );
+
+  focusTrapState.handler = (e) => {
+    if (e.key !== "Tab") return;
+    const focusable = getFocusable();
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey) {
+      if (document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      }
+    } else {
+      if (document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+  };
+
+  modalEl.addEventListener("keydown", focusTrapState.handler);
+  const focusable = getFocusable();
+  if (focusable.length > 0) {
+    requestAnimationFrame(() => focusable[0].focus());
+  }
+}
+
+function releaseFocus() {
+  if (!focusTrapState.active) return;
+  document.querySelectorAll(".modal").forEach((el) => {
+    if (focusTrapState.handler) {
+      el.removeEventListener("keydown", focusTrapState.handler);
+    }
+  });
+  if (focusTrapState.previousFocus && typeof focusTrapState.previousFocus.focus === "function") {
+    focusTrapState.previousFocus.focus();
+  }
+  focusTrapState = { active: false, previousFocus: null, handler: null };
+}
+
+// ============ Skeleton Loader ============
+function renderSkeleton(rows = 4) {
+  const lines = Array.from({ length: rows }, () => '<div class="skeleton-line"></div>').join("");
+  return `<div class="skeleton">${lines}</div>`;
+}
+
+function renderSkeletonCards(count = 3) {
+  return Array.from({ length: count }, () =>
+    `<div class="skeleton-card skeleton"><div class="skeleton-line"></div><div class="skeleton-line"></div></div>`
+  ).join("");
+}
+
+// ============ Inline Validation ============
+function validateField(input, rules = {}) {
+  const value = input.value.trim();
+  const fieldEl = input.closest(".field");
+  let existingError = fieldEl?.querySelector(".field-error");
+  let errorMsg = "";
+
+  if (rules.required && !value) {
+    errorMsg = rules.requiredMsg || "此字段为必填项";
+  } else if (rules.pattern && value && !rules.pattern.test(value)) {
+    errorMsg = rules.patternMsg || "格式不正确";
+  } else if (rules.minLength && value.length < rules.minLength) {
+    errorMsg = rules.minLengthMsg || `至少需要 ${rules.minLength} 个字符`;
+  }
+
+  if (errorMsg) {
+    input.classList.add("field-invalid");
+    if (!existingError && fieldEl) {
+      existingError = document.createElement("p");
+      existingError.className = "field-error";
+      fieldEl.appendChild(existingError);
+    }
+    if (existingError) existingError.textContent = errorMsg;
+    return false;
+  }
+
+  input.classList.remove("field-invalid");
+  if (existingError) existingError.remove();
+  return true;
+}
+
+// ============ Next Step Guide Helper ============
+function renderNextStepGuide(currentStepId) {
+  const project = state.selectedProject;
+  if (!project) return "";
+  const recommended = getRecommendedStepId(project);
+  const currentIndex = FLOW_STEPS.findIndex((s) => s.id === currentStepId);
+  const nextIndex = currentIndex + 1;
+  if (nextIndex >= FLOW_STEPS.length) return "";
+  const nextStep = FLOW_STEPS[nextIndex];
+  const nextStepStatus = getFlowStepStatus(nextStep.id, project, state.activeStepId);
+  if (nextStepStatus === "locked") return "";
+  return `
+    <div class="next-step-guide">
+      <span class="next-step-guide-label">当前步骤已就绪</span>
+      <button class="button button-secondary" data-next-step="${escapeHtml(nextStep.id)}">
+        继续 → ${escapeHtml(nextStep.title)}
+      </button>
+    </div>
+  `;
+}
+
 function metric(label, value, strong = false) {
   return `<span class="badge ${strong ? "badge-strong" : ""}">${escapeHtml(label)}: ${escapeHtml(String(value))}</span>`;
 }
 
-function getSelectedProjectByName(projectName) {
-  return state.projects.find((item) => item.name === projectName) || null;
+function getProjectRef(project) {
+  return project?.id || project?.slug || project?.name || "";
+}
+
+function getSelectedProjectByRef(projectRef) {
+  return state.projects.find((item) => getProjectRef(item) === projectRef || item.name === projectRef) || null;
 }
 
 function getFilteredProjects() {
@@ -786,11 +1013,13 @@ function openModelConfigModal() {
   lockBackgroundScroll();
   elements.modelConfigModal?.classList.remove("hidden");
   elements.modelConfigModal?.setAttribute("aria-hidden", "false");
+  trapFocus(elements.modelConfigModal);
 }
 
 function closeModelConfigModal() {
   elements.modelConfigModal?.classList.add("hidden");
   elements.modelConfigModal?.setAttribute("aria-hidden", "true");
+  releaseFocus();
   unlockBackgroundScroll();
 }
 
@@ -801,11 +1030,13 @@ function openImageModelModal() {
   elements.imageModelModal?.classList.remove("hidden");
   elements.imageModelModal?.setAttribute("aria-hidden", "false");
   lockBackgroundScroll();
+  trapFocus(elements.imageModelModal);
 }
 
 function closeImageModelModal() {
   elements.imageModelModal?.classList.add("hidden");
   elements.imageModelModal?.setAttribute("aria-hidden", "true");
+  releaseFocus();
   unlockBackgroundScroll();
 }
 
@@ -861,7 +1092,7 @@ function renderImageModelModal() {
   const backendPresets = {
     gemini: { base_url: "", models: ["gemini-2.0-flash-exp", "gemini-1.5-flash", "gemini-1.5-pro"] },
     openai: { base_url: "", models: ["dall-e-3", "dall-e-2", "gpt-image-1"] },
-    siliconflow: { base_url: "https://api.siliconflow.cn/v1", models: ["black-forest-labs/FLUX.1-schnell", "black-forest-labs/FLUX.1-dev", "Kwai-Kolors/Kolors", "stabilityai/stable-diffusion-3-medium", "stabilityai/stable-diffusion-xl-base-1.0", "Qwen/Qwen-Image-Edit-2509"] },
+    siliconflow: { base_url: "https://api.siliconflow.cn/v1", models: ["Kwai-Kolors/Kolors", "black-forest-labs/FLUX.1-schnell", "black-forest-labs/FLUX.1-dev", "stabilityai/stable-diffusion-3-medium", "stabilityai/stable-diffusion-xl-base-1.0"] },
   };
 
   const currentBackend = draft.backend || "gemini";
@@ -1207,7 +1438,7 @@ function renderProjectContext() {
             <strong>${health.completed}/${health.total}</strong>
             <span>${health.percent}%</span>
           </div>
-          <div class="progress-track" aria-hidden="true">
+          <div class="progress-track" role="progressbar" aria-valuenow="${health.percent}" aria-valuemax="100" aria-label="项目进度 ${health.percent}%">
             <span class="progress-fill" style="width: ${health.percent}%"></span>
           </div>
           ${health.blockerCount > 0 ? `
@@ -1222,9 +1453,9 @@ function renderProjectContext() {
   `;
 
   elements.projectContext.querySelector('[data-context-action="refresh"]').addEventListener("click", () => {
-    selectProject(project.name, { keepStep: true });
+    selectProject(getProjectRef(project), { keepStep: true });
   });
-  elements.projectContext.querySelector('[data-context-action="validate"]').addEventListener("click", () => validateProject(project.name));
+  elements.projectContext.querySelector('[data-context-action="validate"]').addEventListener("click", () => validateProject(getProjectRef(project)));
 }
 
 function getStepLabel(stepId) {
@@ -1242,9 +1473,11 @@ function renderStepRail() {
       status === "locked" ? "step-chip-locked" : "",
     ].join(" ").trim();
 
+    const numberContent = status === "complete" ? "\u2713" : String(index + 1);
+
     return `
       <button class="${className}" data-flow-step="${escapeHtml(step.id)}" ${canOpen ? "" : "disabled"}>
-        <span class="step-number">${index + 1}</span>
+        <span class="step-number">${numberContent}</span>
         <p class="step-title">${escapeHtml(step.title)}</p>
         <p class="step-desc">${escapeHtml(step.description)}</p>
       </button>
@@ -1283,15 +1516,15 @@ function renderRecentProjects() {
   return `
     <div class="project-list">
       ${filteredProjects.map((project) => `
-        <article class="project-item ${state.selectedProject?.name === project.name ? "project-item-active" : ""}">
+        <article class="project-item ${getProjectRef(state.selectedProject) === getProjectRef(project) ? "project-item-active" : ""}">
           <div class="project-top">
             <div>
               <h3 class="project-name">${escapeHtml(project.name)}</h3>
               <p class="project-meta">${escapeHtml(project.canvas_label)} · ${escapeHtml(project.created_at)}</p>
             </div>
             <div class="project-actions">
-              <button class="button button-ghost" data-project-select="${escapeHtml(project.name)}">
-                ${state.selectedProject?.name === project.name ? "当前项目" : "切换到此项目"}
+              <button class="button button-ghost" data-project-select="${escapeHtml(getProjectRef(project))}">
+                ${getProjectRef(state.selectedProject) === getProjectRef(project) ? "当前项目" : "切换到此项目"}
               </button>
             </div>
           </div>
@@ -1355,11 +1588,36 @@ function renderSourcesStep() {
     return renderLockedStage("先完成第 1 步，选择一个项目。");
   }
 
+  const project = state.selectedProject;
+  const sourceFiles = project.source_markdown || [];
+  const sourceCount = project.source_count || 0;
+
+  const existingSourcesHtml = sourceCount > 0 ? `
+    <section class="subpanel">
+      <div class="section-head">
+        <p class="section-kicker">Imported</p>
+        <h2>已导入来源 (${sourceCount})</h2>
+      </div>
+      <div class="pm-file-list">
+        ${sourceFiles.length > 0 ? sourceFiles.map((file) => `
+          <div class="pm-file-item">
+            <span class="pm-file-icon svg-icon">M</span>
+            <span class="pm-file-name">${escapeHtml(file.name)}</span>
+            <a class="button button-ghost button-small" data-doc-preview="${escapeHtml(file.url)}" data-doc-title="${escapeHtml(file.name)}" style="padding:4px 10px;font-size:0.78rem;cursor:pointer;">预览</a>
+          </div>
+        `).join("") : `
+          <p class="helper">${sourceCount} 个来源文件（详细列表需刷新项目数据）</p>
+        `}
+      </div>
+    </section>
+  ` : "";
+
   return `
+    ${existingSourcesHtml}
     <section class="subpanel">
       <div class="section-head">
         <p class="section-kicker">Import</p>
-        <h2>导入到 ${escapeHtml(state.selectedProject.name)}</h2>
+        <h2>${sourceCount > 0 ? "追加导入" : "导入到"} ${escapeHtml(project.name)}</h2>
       </div>
       <form id="importForm" class="stack">
         <label class="field">
@@ -1388,12 +1646,13 @@ function renderSourcesStep() {
           <textarea name="pasted_content" rows="10" placeholder="把文本或 Markdown 直接贴在这里，后端会先生成文件再导入项目"></textarea>
         </label>
         <div class="action-row">
-          <button type="submit" class="button button-secondary">导入并进入模板决策</button>
+          <button type="submit" class="button button-secondary">${sourceCount > 0 ? "追加导入" : "导入并进入模板决策"}</button>
           <button type="button" class="button button-ghost" data-jump-step="project">切换项目</button>
         </div>
       </form>
       <p class="helper">支持 Markdown、PDF、DOCX、TXT、URL，以及直接粘贴文本或 Markdown。</p>
     </section>
+    ${sourceCount > 0 ? renderNextStepGuide("sources") : ""}
   `;
 }
 
@@ -1453,6 +1712,7 @@ function renderTemplateStep() {
             ${hasDesignSpec(project) ? '<button class="button button-secondary" data-jump-step="strategist">查看设计规范阶段</button>' : ""}
           </div>
         </section>
+        ${renderNextStepGuide("template")}
       </div>
     `;
   }
@@ -1524,7 +1784,7 @@ function renderTemplateStep() {
     `).join("");
 
   const loadingHtml = state.templatesLoading
-    ? `<div class="empty-state"><p>加载模板列表...</p></div>`
+    ? renderSkeletonCards(4)
     : "";
 
   const emptyHtml = !state.templatesLoading && templates.length === 0
@@ -1593,6 +1853,7 @@ function renderStrategistStep() {
             <div class="loading-spinner"></div>
             <p>正在分析源内容，生成八项建议...</p>
           </div>
+          ${renderSkeleton(6)}
         </section>
       </div>
     `;
@@ -1642,6 +1903,7 @@ function renderStrategistStep() {
             <button class="button button-secondary" data-jump-step="executor">继续到 Executor</button>
           </div>
         </section>
+        ${renderNextStepGuide("strategist")}
       </div>
     `;
   }
@@ -1733,64 +1995,84 @@ function renderStrategistStep() {
         </div>
 
         <form id="strategistForm" class="confirmation-form">
-          <div class="confirmation-section">
-            <h3>画布格式</h3>
-            <div class="confirmation-row">
-              ${renderField("选择格式", "canvas_format", "select", formatOptions)}
+          <div class="collapsible-section collapsible-open" data-collapsible>
+            <div class="collapsible-header">
+              <h3>基础设置（画布 / 页数 / 受众 / 风格）</h3>
+              <span class="collapsible-arrow">\u25BC</span>
+            </div>
+            <div class="collapsible-body">
+              <div class="confirmation-section">
+                <div class="confirmation-row">
+                  ${renderField("选择格式", "canvas_format", "select", formatOptions)}
+                </div>
+              </div>
+              <div class="confirmation-section">
+                <div class="confirmation-row two-col-inline">
+                  ${renderField("最小页数", "page_count_min", "number", { placeholder: "8" })}
+                  ${renderField("最大页数", "page_count_max", "number", { placeholder: "12" })}
+                </div>
+              </div>
+              <div class="confirmation-section">
+                <div class="confirmation-row">
+                  ${renderField("受众描述", "target_audience", "text")}
+                </div>
+              </div>
+              <div class="confirmation-section">
+                <div class="confirmation-row">
+                  ${renderField("选择风格", "style_objective", "select", styleOptions)}
+                </div>
+              </div>
             </div>
           </div>
 
-          <div class="confirmation-section">
-            <h3>页数范围</h3>
-            <div class="confirmation-row two-col-inline">
-              ${renderField("最小页数", "page_count_min", "number", { placeholder: "8" })}
-              ${renderField("最大页数", "page_count_max", "number", { placeholder: "12" })}
+          <div class="collapsible-section" data-collapsible>
+            <div class="collapsible-header">
+              <h3>配色方案</h3>
+              <span class="collapsible-arrow">\u25BC</span>
+            </div>
+            <div class="collapsible-body">
+              <div class="confirmation-section">
+                <div class="confirmation-row three-col-inline">
+                  ${renderField("主色", "color_primary", "color")}
+                  ${renderField("辅色", "color_secondary", "color")}
+                  ${renderField("强调色", "color_accent", "color")}
+                </div>
+              </div>
             </div>
           </div>
 
-          <div class="confirmation-section">
-            <h3>目标受众</h3>
-            <div class="confirmation-row">
-              ${renderField("受众描述", "target_audience", "text")}
+          <div class="collapsible-section" data-collapsible>
+            <div class="collapsible-header">
+              <h3>字体方案</h3>
+              <span class="collapsible-arrow">\u25BC</span>
+            </div>
+            <div class="collapsible-body">
+              <div class="confirmation-section">
+                <div class="confirmation-row three-col-inline">
+                  ${renderField("标题字体", "title_font", "text")}
+                  ${renderField("正文字体", "body_font", "text")}
+                  ${renderField("字号", "body_size", "number", { placeholder: "24" })}
+                </div>
+              </div>
             </div>
           </div>
 
-          <div class="confirmation-section">
-            <h3>风格目标</h3>
-            <div class="confirmation-row">
-              ${renderField("选择风格", "style_objective", "select", styleOptions)}
+          <div class="collapsible-section" data-collapsible>
+            <div class="collapsible-header">
+              <h3>图标与图片</h3>
+              <span class="collapsible-arrow">\u25BC</span>
             </div>
-          </div>
-
-          <div class="confirmation-section">
-            <h3>配色方案</h3>
-            <div class="confirmation-row three-col-inline">
-              ${renderField("主色", "color_primary", "color")}
-              ${renderField("辅色", "color_secondary", "color")}
-              ${renderField("强调色", "color_accent", "color")}
-            </div>
-          </div>
-
-          <div class="confirmation-section">
-            <h3>图标使用</h3>
-            <div class="confirmation-row">
-              ${renderField("图标方案", "icon_approach", "select", iconOptions)}
-            </div>
-          </div>
-
-          <div class="confirmation-section">
-            <h3>字体方案</h3>
-            <div class="confirmation-row three-col-inline">
-              ${renderField("标题字体", "title_font", "text")}
-              ${renderField("正文字体", "body_font", "text")}
-              ${renderField("字号", "body_size", "number", { placeholder: "24" })}
-            </div>
-          </div>
-
-          <div class="confirmation-section">
-            <h3>图片使用</h3>
-            <div class="confirmation-row">
-              ${renderField("图片方案", "image_approach", "select", imageOptions)}
+            <div class="collapsible-body">
+              <div class="confirmation-section">
+                <div class="confirmation-row">
+                  ${renderField("图标方案", "icon_approach", "select", iconOptions)}
+                </div>
+              </div>
+              <div class="confirmation-section">
+                <div class="confirmation-row">
+                  ${renderField("图片方案", "image_approach", "select", imageOptions)}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1818,12 +2100,15 @@ function renderImagesStep() {
   const activeImageProfile = imageConfig.active_profile;
   const imgGen = state.imageGeneration;
 
-  // Count existing images
-  const imageCount = project.source_markdown?.length || 0; // We'll use a simpler check
+  // Get image resources from design spec
+  const imageResources = project.image_resources || [];
+  const totalImages = imageResources.length;
+  const pendingImages = imageResources.filter((img) => img.status === "pending");
+  const generatedCount = imageResources.filter((img) => img.status === "generated").length;
 
   // Get image approach from strategist analysis if available
   const imageApproach = state.eightConfirmations.image_approach || "none";
-  const needsImages = imageApproach === "ai-generated";
+  const needsImages = imageApproach === "ai-generated" || totalImages > 0;
 
   if (downstreamStarted && !needsImages) {
     return `
@@ -1855,7 +2140,7 @@ function renderImagesStep() {
           </div>
           <div class="loading-indicator">
             <div class="loading-spinner"></div>
-            <p>生成中...</p>
+            <p>${escapeHtml(imgGen.status || "生成中...")}</p>
           </div>
         </section>
       </div>
@@ -1866,6 +2151,58 @@ function renderImagesStep() {
     const label = `${profile.name} · ${profile.backend}${profile.model ? ` · ${profile.model}` : ""}`;
     return `<option value="${escapeHtml(profile.id)}" ${activeImageProfile?.id === profile.id ? "selected" : ""}>${escapeHtml(label)}</option>`;
   }).join("");
+
+  // Render image resources list if available
+  let imageListHtml = "";
+  if (totalImages > 0) {
+    imageListHtml = `
+      <div class="image-resources-section" style="margin-top: 16px;">
+        <div class="section-head" style="margin-bottom: 8px;">
+          <h3 style="font-size: 14px; margin: 0;">图片资源清单</h3>
+          <span class="badge">${generatedCount}/${totalImages} 已生成</span>
+        </div>
+        <div class="image-resource-list" style="max-height: 300px; overflow-y: auto;">
+          ${imageResources.map((img, idx) => `
+            <div class="image-resource-item ${img.status === "generated" ? "image-generated" : ""}"
+                 style="display: flex; align-items: flex-start; gap: 12px; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; ${img.status === "generated" ? "background: rgba(61, 139, 122, 0.08); border-color: var(--teal);" : ""}">
+              <div style="flex: 1; min-width: 0;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                  <span style="font-weight: 500; font-size: 13px;">${escapeHtml(img.filename)}</span>
+                  <span class="badge ${img.status === "generated" ? "badge-strong" : ""}" style="font-size: 11px; padding: 2px 6px;">
+                    ${img.status === "generated" ? "已生成" : "待生成"}
+                  </span>
+                </div>
+                <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">
+                  ${img.usage_pages ? `📍 ${escapeHtml(img.usage_pages)}` : ""}
+                  ${img.dimensions ? ` · ${escapeHtml(img.dimensions)}` : ""}
+                </div>
+                ${img.description ? `
+                  <div style="font-size: 12px; color: var(--text); margin-top: 4px; line-height: 1.4;">
+                    ${escapeHtml(img.description.substring(0, 150))}${img.description.length > 150 ? "..." : ""}
+                  </div>
+                ` : ""}
+              </div>
+              ${img.status === "pending" ? `
+                <button class="button button-ghost button-small"
+                        data-generate-single-image="${idx}"
+                        style="padding: 4px 10px; font-size: 12px; white-space: nowrap;"
+                        ${!activeImageProfile?.configured ? "disabled" : ""}>
+                  生成
+                </button>
+              ` : ""}
+            </div>
+          `).join("")}
+        </div>
+        ${pendingImages.length > 0 && activeImageProfile?.configured ? `
+          <div class="action-row" style="margin-top: 12px;">
+            <button class="button button-primary" data-generate-all-images>
+              批量生成 (${pendingImages.length} 张)
+            </button>
+          </div>
+        ` : ""}
+      </div>
+    `;
+  }
 
   return `
     <div class="stack">
@@ -1882,29 +2219,40 @@ function renderImagesStep() {
             <button class="button button-ghost" data-jump-step="executor">跳过</button>
           </div>
         ` : `
-          <p class="helper">输入图片描述生成配图。</p>
-          <label class="field">
-            <span>图片描述</span>
-            <textarea id="imagePromptInput" rows="2" placeholder="描述图片...">${escapeHtml(imgGen.prompt)}</textarea>
-          </label>
-          <div class="two-col compact-grid">
-            <label class="field">
-              <span>宽高比</span>
-              <select id="imageAspectSelect">
-                ${(imageConfig.aspect_ratios || ["1:1", "16:9", "9:16"]).map((ar) => `<option value="${ar}" ${imgGen.aspectRatio === ar ? "selected" : ""}>${ar}</option>`).join("")}
-              </select>
-            </label>
-            <label class="field">
-              <span>尺寸</span>
-              <select id="imageSizeSelect">
-                ${(imageConfig.sizes || ["512px", "1K", "2K"]).map((sz) => `<option value="${sz}" ${imgGen.imageSize === sz ? "selected" : ""}>${sz}</option>`).join("")}
-              </select>
-            </label>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <p class="helper" style="margin: 0;">${totalImages > 0 ? `设计规范中定义了 ${totalImages} 张配图资源。` : "输入图片描述生成配图。"}</p>
+            <button class="button button-ghost button-small" data-image-action="open-config" style="padding: 4px 8px; font-size: 12px;">编辑配置</button>
           </div>
-          <div class="action-row">
-            <button class="button button-primary" data-image-action="generate">生成图片</button>
-            <button class="button button-ghost" data-jump-step="executor">跳过</button>
-          </div>
+
+          ${imageListHtml}
+
+          ${totalImages === 0 ? `
+            <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+              <p class="helper" style="margin-bottom: 8px;">手动生成单张图片：</p>
+              <label class="field">
+                <span>图片描述</span>
+                <textarea id="imagePromptInput" rows="2" placeholder="描述图片...">${escapeHtml(imgGen.prompt)}</textarea>
+              </label>
+              <div class="two-col compact-grid">
+                <label class="field">
+                  <span>宽高比</span>
+                  <select id="imageAspectSelect">
+                    ${(imageConfig.aspect_ratios || ["1:1", "16:9", "9:16"]).map((ar) => `<option value="${ar}" ${imgGen.aspectRatio === ar ? "selected" : ""}>${ar}</option>`).join("")}
+                  </select>
+                </label>
+                <label class="field">
+                  <span>尺寸</span>
+                  <select id="imageSizeSelect">
+                    ${(imageConfig.sizes || ["512px", "1K", "2K"]).map((sz) => `<option value="${sz}" ${imgGen.imageSize === sz ? "selected" : ""}>${sz}</option>`).join("")}
+                  </select>
+                </label>
+              </div>
+              <div class="action-row">
+                <button class="button button-primary" data-image-action="generate">生成图片</button>
+              </div>
+            </div>
+          ` : ""}
+
           ${imgGen.lastResult ? `
             <div class="status-card status-ok" style="margin-top: 12px;">
               <strong>生成成功</strong>
@@ -1917,8 +2265,13 @@ function renderImagesStep() {
               <p class="helper">${escapeHtml(imgGen.error)}</p>
             </div>
           ` : ""}
+
+          <div class="action-row" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+            <button class="button button-ghost" data-jump-step="executor">跳过，继续下一步</button>
+          </div>
         `}
       </section>
+      ${renderNextStepGuide("images")}
     </div>
   `;
 }
@@ -2026,11 +2379,18 @@ function renderExecutorStep() {
 
         ${phase === "generating" ? `
           <div class="status-card status-info">
-            <strong>${svgGen.mode === "regenerate" ? "重新生成中..." : "生成中..."}</strong>
-            <div class="progress-bar">
-              <div class="progress-fill" style="width: ${svgGen.totalPages > 0 ? Math.round((svgGen.generatedPages / svgGen.totalPages) * 100) : 0}%"></div>
-            </div>
-            <p class="helper">${svgGen.generatedPages} / ${svgGen.totalPages} 页</p>
+            <strong>${svgGen.totalPages > 0 ? (svgGen.mode === "regenerate" ? "重新生成中..." : "生成中...") : "任务运行中..."}</strong>
+            ${svgGen.totalPages > 0 ? `
+              <div class="progress-bar" role="progressbar" aria-valuenow="${Math.round((svgGen.generatedPages / svgGen.totalPages) * 100)}" aria-valuemax="100" aria-label="SVG 生成进度">
+                <div class="progress-fill" style="width: ${Math.round((svgGen.generatedPages / svgGen.totalPages) * 100)}%"></div>
+              </div>
+              <p class="helper">第 ${svgGen.generatedPages} / ${svgGen.totalPages} 页 — ${Math.round((svgGen.generatedPages / svgGen.totalPages) * 100)}%</p>
+            ` : `
+              <div class="loading-indicator" style="padding: 16px 0;">
+                <div class="loading-spinner"></div>
+              </div>
+              <p class="helper">等待后端响应...</p>
+            `}
           </div>
           <div class="log-panel">
             <pre class="status-log">${svgGen.log.slice(-10).map((line) => escapeHtml(line)).join("\n")}</pre>
@@ -2055,6 +2415,7 @@ function renderExecutorStep() {
       </section>
 
       ${svgPreviewHtml}
+      ${phase === "complete" ? renderNextStepGuide("executor") : ""}
     </div>
   `;
 }
@@ -2154,6 +2515,7 @@ function openSvgPreviewModal(slides, startIndex = 0) {
     elements.svgPreviewModal.classList.remove("hidden");
     elements.svgPreviewModal.setAttribute("aria-hidden", "false");
   }
+  trapFocus(elements.svgPreviewModal);
 }
 
 function closeSvgPreviewModal() {
@@ -2161,6 +2523,7 @@ function closeSvgPreviewModal() {
     elements.svgPreviewModal.classList.add("hidden");
     elements.svgPreviewModal.setAttribute("aria-hidden", "true");
   }
+  releaseFocus();
   state.svgPreview.slides = [];
   state.svgPreview.currentIndex = 0;
 }
@@ -2227,6 +2590,7 @@ async function openDocPreview(title, url) {
     elements.docPreviewModal.classList.remove("hidden");
     elements.docPreviewModal.setAttribute("aria-hidden", "false");
   }
+  trapFocus(elements.docPreviewModal);
   if (elements.docPreviewTitle) {
     elements.docPreviewTitle.textContent = title;
   }
@@ -2240,7 +2604,7 @@ async function openDocPreview(title, url) {
 
   // Fetch document content
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, { credentials: "same-origin" });
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
@@ -2268,6 +2632,7 @@ function closeDocPreview() {
     elements.docPreviewModal.classList.add("hidden");
     elements.docPreviewModal.setAttribute("aria-hidden", "true");
   }
+  releaseFocus();
   document.body.classList.remove("modal-open");
 }
 
@@ -2524,6 +2889,28 @@ function bindStageEvents() {
       }
     });
   });
+
+  // Single image generation from resource list
+  elements.stageBody.querySelectorAll("[data-generate-single-image]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const idx = parseInt(button.dataset.generateSingleImage, 10);
+      const imageResources = state.selectedProject?.image_resources || [];
+      const img = imageResources[idx];
+      if (img && state.selectedProject) {
+        generateSingleImageFromResource(state.selectedProject.name, img, idx);
+      }
+    });
+  });
+
+  // Batch generate all pending images
+  elements.stageBody.querySelectorAll("[data-generate-all-images]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (state.selectedProject) {
+        generateAllPendingImages(state.selectedProject.name);
+      }
+    });
+  });
+
   elements.stageBody.querySelector("#imageProfileSelect")?.addEventListener("change", (event) => {
     selectImageProfile(event.currentTarget.value);
   });
@@ -2638,20 +3025,92 @@ function bindStageEvents() {
       }
     });
   });
+
+  // ============ Next Step Guide ============
+  elements.stageBody.querySelectorAll("[data-next-step]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.activeStepId = button.dataset.nextStep;
+      renderStepRail();
+      renderStage();
+    });
+  });
+
+  // ============ Collapsible Sections ============
+  elements.stageBody.querySelectorAll("[data-collapsible] .collapsible-header").forEach((header) => {
+    header.addEventListener("click", () => {
+      const section = header.closest("[data-collapsible]");
+      if (section) {
+        section.classList.toggle("collapsible-open");
+      }
+    });
+  });
+
+  // ============ Inline Validation ============
+  const projectNameInput = elements.stageBody.querySelector('input[name="project_name"]');
+  if (projectNameInput) {
+    projectNameInput.addEventListener("blur", () => {
+      validateField(projectNameInput, {
+        required: true,
+        requiredMsg: "项目名不能为空",
+        pattern: /^[a-zA-Z0-9_\-\u4e00-\u9fff]+$/,
+        patternMsg: "项目名只能包含字母、数字、下划线、中划线或中文",
+      });
+    });
+  }
 }
 
-function renderAll() {
-  renderStats();
-  renderProjectContext();
-  renderStepRail();
-  renderStage();
+function renderAll(options = {}) {
+  const { stats = true, context = true, rail = true, stage = true } = options;
+  if (stats) renderStats();
+  renderUserBadge();
+  if (context) renderProjectContext();
+  if (rail) renderStepRail();
+  if (stage) renderStage();
+}
+
+function renderInitializationError(error) {
+  const statusText = error?.status ? `HTTP ${error.status}` : "Request failed";
+  const pathText = error?.path || "/api/dashboard";
+  const detail = error?.message || "未知错误";
+
+  elements.projectContext.innerHTML = `
+    <div class="context-empty">
+      <strong>控制台初始化失败</strong>
+      <p class="context-text">页面静态资源已经加载成功，但 Web API 当前没有正常响应，所以项目数据、用户信息和工作流状态还不可用。</p>
+      <div class="detail-block">
+        <p class="detail-title">诊断信息</p>
+        <p class="helper">请求接口：${escapeHtml(pathText)}</p>
+        <p class="helper">返回状态：${escapeHtml(statusText)}</p>
+        <p class="helper">错误详情：${escapeHtml(detail)}</p>
+      </div>
+      <div class="detail-block">
+        <p class="detail-title">建议处理</p>
+        <ul class="context-list">
+          <li>确认当前打开的是 FastAPI Web 服务首页，而不是单独打开静态 HTML 文件。</li>
+          <li>如果刚更新过后端，请重启服务后再刷新页面。</li>
+          <li>推荐使用 <code>python3 webapp/server.py</code> 启动 Web 服务。</li>
+        </ul>
+      </div>
+    </div>
+  `;
+
+  elements.stageKicker.textContent = "System";
+  elements.stageTitle.textContent = "后端接口不可用";
+  elements.stageDescription.textContent = "前端已进入故障保护模式，等待 Web API 恢复。";
+  elements.stageBody.innerHTML = `
+    <div class="status-card status-error">
+      <strong>无法完成初始化</strong>
+      <p class="helper">只要后端 API 恢复，刷新页面后就会重新进入正常工作台。</p>
+      <pre class="status-log">${escapeHtml(`${statusText}\n${pathText}\n${detail}`)}</pre>
+    </div>
+  `;
 }
 
 function syncSelectedProject() {
   if (!state.selectedProject) {
     return;
   }
-  const refreshed = getSelectedProjectByName(state.selectedProject.name);
+  const refreshed = getSelectedProjectByRef(getProjectRef(state.selectedProject));
   state.selectedProject = refreshed;
   if (!state.selectedProject) {
     state.validation = null;
@@ -2661,6 +3120,7 @@ function syncSelectedProject() {
 
 async function loadDashboard({ preserveSelection = true } = {}) {
   const data = await apiFetch("/api/dashboard");
+  state.user = data.user || state.user;
   state.formats = data.formats;
   state.steps = data.steps;
   state.projects = data.projects;
@@ -2684,6 +3144,455 @@ async function loadDashboard({ preserveSelection = true } = {}) {
   if (elements.modelConfigModal && !elements.modelConfigModal.classList.contains("hidden")) {
     renderModelConfigModal();
   }
+}
+
+async function loadCurrentUser() {
+  const data = await apiFetch("/api/me");
+  state.user = data.user || null;
+}
+
+function renderUserBadge() {
+  if (!elements.userBadge || !elements.logoutButton || !elements.openAdminPanelButton) {
+    return;
+  }
+  if (!state.user) {
+    elements.userBadge.classList.add("hidden");
+    elements.logoutButton.classList.add("hidden");
+    elements.openAdminPanelButton.classList.add("hidden");
+    return;
+  }
+  elements.userBadge.textContent = `${state.user.display_name || state.user.username} · ${state.user.role}`;
+  elements.userBadge.classList.remove("hidden");
+  elements.logoutButton.classList.remove("hidden");
+  if (state.user.role === "admin") {
+    elements.openAdminPanelButton.classList.remove("hidden");
+  } else {
+    elements.openAdminPanelButton.classList.add("hidden");
+  }
+}
+
+async function logout() {
+  try {
+    await apiFetch("/auth/logout", { method: "POST", body: JSON.stringify({}) });
+  } catch (error) {
+    console.error("Logout failed:", error);
+  } finally {
+    window.location.href = "/login";
+  }
+}
+
+async function loadAdminData() {
+  if (state.user?.role !== "admin") {
+    return;
+  }
+  const userOffset = (state.admin.page - 1) * state.admin.pageSize;
+  const auditOffset = (state.admin.auditPage - 1) * state.admin.auditPageSize;
+  const userParams = new URLSearchParams();
+  if (state.admin.userQuery) userParams.set("q", state.admin.userQuery);
+  if (state.admin.roleFilter) userParams.set("role", state.admin.roleFilter);
+  if (state.admin.statusFilter) userParams.set("status", state.admin.statusFilter);
+  userParams.set("limit", String(state.admin.pageSize));
+  userParams.set("offset", String(userOffset));
+
+  const auditParams = new URLSearchParams();
+  if (state.admin.selectedUserId) auditParams.set("user_id", state.admin.selectedUserId);
+  if (state.admin.auditAction) auditParams.set("action", state.admin.auditAction);
+  if (state.admin.auditResource) auditParams.set("resource_type", state.admin.auditResource);
+  if (state.admin.auditStart) auditParams.set("start", state.admin.auditStart);
+  if (state.admin.auditEnd) auditParams.set("end", state.admin.auditEnd);
+  auditParams.set("limit", String(state.admin.auditPageSize));
+  auditParams.set("offset", String(auditOffset));
+
+  const [usersData, logsData] = await Promise.all([
+    apiFetch(`/api/admin/users?${userParams.toString()}`),
+    apiFetch(`/api/admin/audit-logs?${auditParams.toString()}`),
+  ]);
+  state.admin.users = usersData.users || [];
+  state.admin.totalUsers = usersData.total || 0;
+  state.admin.logs = logsData.logs || [];
+  state.admin.totalLogs = logsData.total || 0;
+}
+
+function formatGroups(groups = []) {
+  return Array.isArray(groups) ? groups.join(", ") : "";
+}
+
+function parseGroups(value = "") {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function formatDateTimeLocal(date) {
+  const pad = (num) => String(num).padStart(2, "0");
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+  ].join("-") + "T" + [
+    pad(date.getHours()),
+    pad(date.getMinutes()),
+  ].join(":");
+}
+
+function setAuditRange(hoursBack) {
+  const end = new Date();
+  const start = new Date(end.getTime() - hoursBack * 60 * 60 * 1000);
+  state.admin.auditStart = formatDateTimeLocal(start);
+  state.admin.auditEnd = formatDateTimeLocal(end);
+  state.admin.auditPage = 1;
+  loadAdminData().then(renderAdminPanel).catch((error) => showFlash(error.message, "error"));
+}
+
+function buildAuditExportUrl() {
+  const params = new URLSearchParams();
+  if (state.admin.selectedUserId) params.set("user_id", state.admin.selectedUserId);
+  if (state.admin.auditAction) params.set("action", state.admin.auditAction);
+  if (state.admin.auditResource) params.set("resource_type", state.admin.auditResource);
+  if (state.admin.auditStart) params.set("start", state.admin.auditStart);
+  if (state.admin.auditEnd) params.set("end", state.admin.auditEnd);
+  return `/api/admin/audit-logs/export?${params.toString()}`;
+}
+
+async function copyAuditLogs() {
+  const rows = (state.admin.logs || []).map((log) => {
+    return `[${log.created_at}] ${log.action} ${log.resource_type}:${log.resource_id || "-"} user=${log.user_id || "-"} ${JSON.stringify(log.details || {})}`;
+  }).join("\n");
+  if (!rows) {
+    showFlash("暂无可复制的审计日志", "error");
+    return;
+  }
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(rows);
+    showFlash("已复制当前审计日志");
+    return;
+  }
+  const textarea = document.createElement("textarea");
+  textarea.value = rows;
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  textarea.remove();
+  showFlash("已复制当前审计日志");
+}
+
+async function updateAdminUser(userId, payload) {
+  await apiFetch(`/api/admin/users/${encodeURIComponent(userId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+  await loadAdminData();
+  if (state.admin.selectedUserId) {
+    await loadAdminUserDetail(state.admin.selectedUserId);
+  }
+  renderAdminPanel();
+}
+
+async function purgeUserSessions(userId) {
+  await apiFetch(`/api/admin/users/${encodeURIComponent(userId)}/sessions/purge`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+  await loadAdminData();
+  if (state.admin.selectedUserId) {
+    await loadAdminUserDetail(state.admin.selectedUserId);
+  }
+  renderAdminPanel();
+}
+
+async function loadAdminUserDetail(userId) {
+  if (!userId) {
+    state.admin.userDetail = null;
+    return;
+  }
+  const data = await apiFetch(`/api/admin/users/${encodeURIComponent(userId)}`);
+  state.admin.userDetail = data || null;
+}
+
+function renderAdminPanel() {
+  if (!elements.adminUsersList || !elements.adminAuditLog) {
+    return;
+  }
+  if (elements.adminUserSearchInput) {
+    elements.adminUserSearchInput.value = state.admin.userQuery || "";
+  }
+  if (elements.adminRoleFilter) {
+    elements.adminRoleFilter.value = state.admin.roleFilter || "";
+  }
+  if (elements.adminStatusFilter) {
+    elements.adminStatusFilter.value = state.admin.statusFilter || "";
+  }
+  if (elements.adminAuditActionInput) {
+    elements.adminAuditActionInput.value = state.admin.auditAction || "";
+  }
+  if (elements.adminAuditResourceInput) {
+    elements.adminAuditResourceInput.value = state.admin.auditResource || "";
+  }
+  if (elements.adminAuditStartInput) {
+    elements.adminAuditStartInput.value = state.admin.auditStart || "";
+  }
+  if (elements.adminAuditEndInput) {
+    elements.adminAuditEndInput.value = state.admin.auditEnd || "";
+  }
+  elements.adminUsersList.innerHTML = (state.admin.users || []).map((user) => `
+    <article class="pm-item admin-user-card ${state.admin.selectedUserId === user.id ? "pm-item-active" : ""}" data-admin-user-id="${escapeHtml(user.id)}" data-admin-active="${user.is_active ? "1" : "0"}">
+      <div class="pm-detail-header">
+        <div>
+          <h3 class="pm-item-name">${escapeHtml(user.display_name || user.username)}</h3>
+          <p class="pm-item-meta">${escapeHtml(user.email)} · ${escapeHtml(user.role)} · ${user.is_active ? "启用" : "禁用"}</p>
+        </div>
+        <div class="pm-detail-actions admin-user-actions">
+          <button type="button" class="button button-ghost" data-admin-action="toggle-active">${user.is_active ? "禁用" : "启用"}</button>
+          <button type="button" class="button button-ghost" data-admin-action="purge-sessions">强制下线</button>
+        </div>
+      </div>
+      <div class="pm-item-badges">
+        ${(user.groups || []).slice(0, 4).map((group) => `<span class="badge">${escapeHtml(group)}</span>`).join("")}
+      </div>
+      <div class="admin-user-controls">
+        <label class="field admin-field">
+          <span>角色</span>
+          <select data-admin-role>
+            <option value="user" ${user.role === "user" ? "selected" : ""}>user</option>
+            <option value="admin" ${user.role === "admin" ? "selected" : ""}>admin</option>
+          </select>
+        </label>
+        <label class="field admin-field">
+          <span>分组（逗号分隔）</span>
+          <input type="text" data-admin-groups value="${escapeHtml(formatGroups(user.groups))}">
+        </label>
+        <div class="action-row admin-actions">
+          <button type="button" class="button button-secondary" data-admin-action="save">保存</button>
+        </div>
+      </div>
+    </article>
+  `).join("") || `<p class="helper">暂无用户数据</p>`;
+  const logRows = (state.admin.logs || []).map((log) => {
+    const userLabel = log.user_display_name || log.user_email || log.user_id || "-";
+    return `
+      <div class="admin-audit-row" data-audit-user="${escapeHtml(log.user_id || "")}">
+        <strong>[${escapeHtml(log.created_at)}] ${escapeHtml(log.action)} ${escapeHtml(log.resource_type)}:${escapeHtml(log.resource_id || "-")}</strong>
+        <div class="admin-audit-meta">
+          <span>user:</span>
+          ${log.user_id ? `<span class="admin-audit-link" data-admin-audit-user="${escapeHtml(log.user_id)}">${escapeHtml(userLabel)}</span>` : `<span>${escapeHtml(userLabel)}</span>`}
+          <span>details:</span>
+          <span>${escapeHtml(JSON.stringify(log.details || {}))}</span>
+        </div>
+      </div>
+    `;
+  }).join("");
+  elements.adminAuditLog.innerHTML = logRows || `<p class="helper">暂无审计日志</p>`;
+
+  if (elements.adminAuditSummary) {
+    const counts = {};
+    (state.admin.logs || []).forEach((log) => {
+      const key = log.action || "unknown";
+      counts[key] = (counts[key] || 0) + 1;
+    });
+    const statBadges = Object.entries(counts).map(([action, count]) => {
+      return `<span class="badge">${escapeHtml(action)}: ${count}</span>`;
+    }).join("");
+    elements.adminAuditSummary.innerHTML = `
+      <span class="badge">总计: ${state.admin.totalLogs}</span>
+      ${statBadges || `<span class="helper">暂无统计</span>`}
+    `;
+  }
+
+  if (elements.adminPageIndicator) {
+    const totalPages = Math.max(1, Math.ceil(state.admin.totalUsers / state.admin.pageSize));
+    elements.adminPageIndicator.textContent = `第 ${state.admin.page} / ${totalPages} 页 · 共 ${state.admin.totalUsers} 人`;
+    elements.adminPrevPage.disabled = state.admin.page <= 1;
+    elements.adminNextPage.disabled = state.admin.page >= totalPages;
+  }
+
+  if (elements.adminAuditPageIndicator) {
+    const totalPages = Math.max(1, Math.ceil(state.admin.totalLogs / state.admin.auditPageSize));
+    elements.adminAuditPageIndicator.textContent = `第 ${state.admin.auditPage} / ${totalPages} 页 · 共 ${state.admin.totalLogs} 条`;
+    elements.adminAuditPrevPage.disabled = state.admin.auditPage <= 1;
+    elements.adminAuditNextPage.disabled = state.admin.auditPage >= totalPages;
+  }
+
+  renderAdminUserDetail();
+}
+
+function renderAdminUserDetail() {
+  if (!elements.adminUserDetail) return;
+  const detail = state.admin.userDetail;
+  if (!detail || !detail.user) {
+    elements.adminUserDetail.innerHTML = `<p class="helper">选择左侧用户查看详情</p>`;
+    return;
+  }
+  const user = detail.user;
+  const logs = detail.recent_logs || [];
+  const projects = detail.projects?.recent || [];
+  const activity = detail.activity || {};
+  elements.adminUserDetail.innerHTML = `
+    <div class="pm-detail-section">
+      <h4>基本信息</h4>
+      <div class="pm-detail-grid">
+        <div class="pm-detail-item">
+          <span class="pm-detail-item-label">邮箱</span>
+          <span class="pm-detail-item-value">${escapeHtml(user.email)}</span>
+        </div>
+        <div class="pm-detail-item">
+          <span class="pm-detail-item-label">角色</span>
+          <span class="pm-detail-item-value">${escapeHtml(user.role)}</span>
+        </div>
+        <div class="pm-detail-item">
+          <span class="pm-detail-item-label">状态</span>
+          <span class="pm-detail-item-value">${user.is_active ? "启用" : "禁用"}</span>
+        </div>
+        <div class="pm-detail-item">
+          <span class="pm-detail-item-label">最近登录</span>
+          <span class="pm-detail-item-value">${escapeHtml(user.last_login_at || "-")}</span>
+        </div>
+        <div class="pm-detail-item">
+          <span class="pm-detail-item-label">注册时间</span>
+          <span class="pm-detail-item-value">${escapeHtml(user.created_at || "-")}</span>
+        </div>
+        <div class="pm-detail-item">
+          <span class="pm-detail-item-label">最近更新</span>
+          <span class="pm-detail-item-value">${escapeHtml(user.updated_at || "-")}</span>
+        </div>
+        <div class="pm-detail-item">
+          <span class="pm-detail-item-label">认证来源</span>
+          <span class="pm-detail-item-value">${escapeHtml(user.auth_provider || "-")}</span>
+        </div>
+        <div class="pm-detail-item">
+          <span class="pm-detail-item-label">Subject</span>
+          <span class="pm-detail-item-value">${escapeHtml(user.subject || "-")}</span>
+        </div>
+      </div>
+    </div>
+    <div class="pm-detail-section">
+      <h4>访问与设备</h4>
+      <div class="pm-detail-grid">
+        <div class="pm-detail-item">
+          <span class="pm-detail-item-label">最近活跃</span>
+          <span class="pm-detail-item-value">${escapeHtml(activity.last_active_at || "-")}</span>
+        </div>
+        <div class="pm-detail-item">
+          <span class="pm-detail-item-label">最近活跃 IP</span>
+          <span class="pm-detail-item-value">${escapeHtml(activity.last_active_ip || "-")}</span>
+        </div>
+        <div class="pm-detail-item">
+          <span class="pm-detail-item-label">最近登录 IP</span>
+          <span class="pm-detail-item-value">${escapeHtml(activity.last_login_ip || "-")}</span>
+        </div>
+        <div class="pm-detail-item">
+          <span class="pm-detail-item-label">最近 UA</span>
+          <span class="pm-detail-item-value">${escapeHtml(activity.last_active_ua || activity.last_login_ua || "-")}</span>
+        </div>
+      </div>
+    </div>
+    <div class="pm-detail-section">
+      <h4>项目</h4>
+      <div class="pm-detail-item">
+        <span class="pm-detail-item-label">项目数量</span>
+        <span class="pm-detail-item-value">${detail.projects?.count ?? 0}</span>
+      </div>
+      ${projects.length ? `
+        <div class="pm-file-list">
+          ${projects.map((project) => `
+            <div class="pm-file-item">
+              <span class="pm-file-icon svg-icon">PJ</span>
+              <span class="pm-file-name">${escapeHtml(project.name)}</span>
+              <span class="badge">${escapeHtml(project.status)}</span>
+              <span class="helper">${escapeHtml(project.updated_at)}</span>
+            </div>
+          `).join("")}
+        </div>
+      ` : `<p class="helper">暂无最近项目</p>`}
+    </div>
+    <div class="pm-detail-section">
+      <h4>最近审计</h4>
+      <pre class="status-log">${logs.map((log) => `[${log.created_at}] ${log.action} ${log.resource_type}:${log.resource_id || "-"} ${JSON.stringify(log.details || {})}`).join("\n") || "暂无记录"}</pre>
+    </div>
+  `;
+}
+
+async function handleAdminUsersListClick(event) {
+  const button = event.target.closest("button[data-admin-action]");
+  const card = event.target.closest("[data-admin-user-id]");
+  if (!card) {
+    return;
+  }
+  const userId = card.dataset.adminUserId;
+  if (!button) {
+    state.admin.selectedUserId = userId;
+    try {
+      await loadAdminUserDetail(userId);
+      state.admin.auditPage = 1;
+      await loadAdminData();
+      renderAdminPanel();
+    } catch (error) {
+      showFlash(error.message, "error");
+    }
+    return;
+  }
+  const action = button.dataset.adminAction;
+  const user = (state.admin.users || []).find((item) => item.id === userId);
+
+  try {
+    if (action === "toggle-active") {
+      if (!user) return;
+      const nextActive = !user.is_active;
+      const confirmText = nextActive ? "确认启用该用户？" : "确认禁用该用户？";
+      if (!window.confirm(confirmText)) return;
+      await updateAdminUser(userId, { is_active: nextActive });
+      showFlash(nextActive ? "用户已启用" : "用户已禁用");
+      return;
+    }
+    if (action === "purge-sessions") {
+      if (!window.confirm("确认强制该用户下线？")) return;
+      await purgeUserSessions(userId);
+      showFlash("已强制用户下线");
+      return;
+    }
+    if (action === "save") {
+      const role = card.querySelector("[data-admin-role]")?.value || "user";
+      const groupsValue = card.querySelector("[data-admin-groups]")?.value || "";
+      await updateAdminUser(userId, { role, groups: parseGroups(groupsValue) });
+      showFlash("用户信息已更新");
+    }
+  } catch (error) {
+    showFlash(error.message, "error");
+  }
+}
+
+async function openAdminPanel() {
+  try {
+    setBusy(true);
+    state.admin.selectedUserId = null;
+    state.admin.page = 1;
+    state.admin.auditPage = 1;
+    state.admin.userDetail = null;
+    await loadAdminData();
+    if (state.admin.users.length > 0) {
+      state.admin.selectedUserId = state.admin.users[0].id;
+      await loadAdminUserDetail(state.admin.selectedUserId);
+      state.admin.auditPage = 1;
+      await loadAdminData();
+    }
+    renderAdminPanel();
+    state.admin.isOpen = true;
+    elements.adminPanelModal?.classList.remove("hidden");
+    document.body.classList.add("modal-open");
+    trapFocus(elements.adminPanelModal);
+  } catch (error) {
+    showFlash(error.message, "error");
+    appendLog("加载用户管理失败", error.message);
+  } finally {
+    setBusy(false);
+  }
+}
+
+function closeAdminPanel() {
+  state.admin.isOpen = false;
+  elements.adminPanelModal?.classList.add("hidden");
+  releaseFocus();
+  document.body.classList.remove("modal-open");
 }
 
 async function loadImageModelConfig() {
@@ -2739,7 +3648,7 @@ async function applyTemplate(projectName, templateId) {
       body: JSON.stringify({ template_id: templateId }),
     });
 
-    appendLog("模板应用成功", JSON.stringify(data.copied_files, null, 2));
+    appendLog("模板应用成功", `${(data.copied_files || []).length} 个文件`);
     showFlash(`已应用模板: ${templateId}`);
 
     // Refresh project state
@@ -2807,7 +3716,7 @@ async function analyzeProject() {
     renderStage();
   } catch (error) {
     showFlash(error.message, "error");
-    appendLog("分析失败", error.payload ? JSON.stringify(error.payload, null, 2) : error.message);
+    appendLog("分析失败", error.message);
   } finally {
     state.strategistLoading = false;
     renderStage();
@@ -2861,7 +3770,7 @@ async function saveDesignSpec(event) {
     renderAll();
   } catch (error) {
     showFlash(error.message, "error");
-    appendLog("保存失败", error.payload ? JSON.stringify(error.payload, null, 2) : error.message);
+    appendLog("保存失败", error.message);
   } finally {
     state.strategistSaving = false;
     renderStage();
@@ -2912,6 +3821,7 @@ function resetProjectSpecificState() {
   // Clear image generation state
   state.imageGeneration = {
     inProgress: false,
+    status: "",
     prompt: "",
     filename: "",
     aspectRatio: "16:9",
@@ -2969,7 +3879,7 @@ async function createProject(event) {
       method: "POST",
       body: JSON.stringify(payload),
     });
-    appendLog("项目创建成功", JSON.stringify(data.project, null, 2));
+    appendLog("项目创建成功", data.project?.name || "");
     showFlash(`已创建项目 ${data.project.name}`);
     await loadDashboard({ preserveSelection: false });
     state.selectedProject = data.project;
@@ -3014,7 +3924,7 @@ async function importSources(event) {
       method: "POST",
       body: JSON.stringify(payload),
     });
-    appendLog("导入完成", JSON.stringify(data.summary, null, 2));
+    appendLog("导入完成", `${data.summary?.imported_count ?? ""} 个文件`);
     showFlash(`已导入到 ${state.selectedProject.name}`);
     state.selectedProject = data.project;
     moveToRecommendedStep();
@@ -3041,13 +3951,13 @@ async function validateProject(projectName) {
       projectName,
       result: data.validation,
     };
-    appendLog(`校验完成 ${projectName}`, JSON.stringify(data.validation, null, 2));
+    appendLog(`校验完成 ${projectName}`, `valid=${data.validation?.is_valid}, errors=${data.validation?.errors?.length || 0}`);
     showFlash(data.validation.is_valid ? "校验通过" : "校验发现问题", data.validation.is_valid ? "success" : "error");
     await loadDashboard();
     renderAll();
   } catch (error) {
     showFlash(error.message, "error");
-    appendLog("校验失败", error.payload ? JSON.stringify(error.payload, null, 2) : error.message);
+    appendLog("校验失败", error.message);
   } finally {
     setBusy(false);
   }
@@ -3089,14 +3999,14 @@ async function saveModelConfig(event) {
       fetchedModels: state.modal.fetchedModels,
       fetchMessage: "配置已保存。默认使用当前所选 profile。",
     });
-    appendLog("模型配置已保存", JSON.stringify(data.model_config, null, 2));
+    appendLog("模型配置已保存", data.model_config?.active_profile?.name || "");
     showFlash("模型配置已保存");
     state.activeStepId = state.selectedProject ? "executor" : state.activeStepId;
     renderAll();
     renderModelConfigModal();
   } catch (error) {
     showFlash(error.message, "error");
-    appendLog("模型配置保存失败", error.payload ? JSON.stringify(error.payload, null, 2) : error.message);
+    appendLog("模型配置保存失败", error.message);
   } finally {
     setBusy(false);
   }
@@ -3125,7 +4035,7 @@ async function selectModelProfile(profileId, options = {}) {
     renderModelConfigModal();
   } catch (error) {
     showFlash(error.message, "error");
-    appendLog("切换模型配置失败", error.payload ? JSON.stringify(error.payload, null, 2) : error.message);
+    appendLog("切换模型配置失败", error.message);
   } finally {
     setBusy(false);
   }
@@ -3154,7 +4064,7 @@ async function deleteModelProfile(profileId) {
     renderModelConfigModal();
   } catch (error) {
     showFlash(error.message, "error");
-    appendLog("删除模型配置失败", error.payload ? JSON.stringify(error.payload, null, 2) : error.message);
+    appendLog("删除模型配置失败", error.message);
   } finally {
     setBusy(false);
   }
@@ -3199,7 +4109,7 @@ async function fetchRemoteModels() {
     state.modal.fetchMessage = error.message;
     renderModelConfigModal();
     showFlash(error.message, "error");
-    appendLog("获取模型列表失败", error.payload ? JSON.stringify(error.payload, null, 2) : error.message);
+    appendLog("获取模型列表失败", error.message);
   } finally {
     setBusy(false);
   }
@@ -3234,7 +4144,7 @@ async function testModelConfig() {
     renderModelConfigModal();
 
     showFlash("模型测试成功");
-    appendLog("模型测试成功", JSON.stringify(result, null, 2));
+    appendLog("模型测试成功", result?.model || "ok");
   } catch (error) {
     state.modal.testError = true;
     state.modal.testMessage = error.message;
@@ -3242,7 +4152,7 @@ async function testModelConfig() {
     renderModelConfigModal();
 
     showFlash(error.message, "error");
-    appendLog("模型测试失败", error.payload ? JSON.stringify(error.payload, null, 2) : error.message);
+    appendLog("模型测试失败", error.message);
   } finally {
     setBusy(false);
   }
@@ -3264,7 +4174,7 @@ async function runStep(projectName, stepId) {
     await loadDashboard();
     renderAll();
   } catch (error) {
-    const detail = error.payload ? JSON.stringify(error.payload, null, 2) : error.message;
+    const detail = error.message;
     showFlash(error.message, "error");
     appendLog(`步骤失败 ${stepId}`, detail);
   } finally {
@@ -3296,7 +4206,7 @@ async function generateNotes(projectName) {
     await loadDashboard();
     renderAll();
   } catch (error) {
-    const detail = error.payload ? JSON.stringify(error.payload, null, 2) : error.message;
+    const detail = error.message;
     showFlash(error.message, "error");
     appendLog("notes/total.md 生成失败", detail);
   } finally {
@@ -3308,6 +4218,11 @@ async function generateSvg(projectName) {
   const activeProfile = getActiveProfile();
   if (!activeProfile) {
     showFlash("先配置并选中一个模型 profile", "error");
+    return;
+  }
+
+  if (state.svgGeneration.inProgress) {
+    showFlash("SVG 正在生成中，请等待完成", "error");
     return;
   }
 
@@ -3329,6 +4244,7 @@ async function generateSvg(projectName) {
   try {
     const response = await fetch(`/api/projects/${encodeURIComponent(projectName)}/generate-svg`, {
       method: "POST",
+      credentials: "same-origin",
       headers: {
         "Content-Type": "application/json",
       },
@@ -3339,7 +4255,16 @@ async function generateSvg(projectName) {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `HTTP ${response.status}`);
+      const msg = errorData.error || errorData.detail || `HTTP ${response.status}`;
+      if (response.status === 409) {
+        state.svgGeneration.inProgress = true;
+        state.svgGeneration.log = ["后端有任务正在运行，请等待完成后重试"];
+        showFlash("该项目有任务正在运行，请稍候", "error");
+        appendLog("SVG 生成冲突", msg);
+        renderAll();
+        return;
+      }
+      throw new Error(msg);
     }
 
     const reader = response.body.getReader();
@@ -3396,7 +4321,12 @@ async function generateSvg(projectName) {
   } finally {
     state.svgGeneration.inProgress = false;
     await loadDashboard();
-    renderAll();
+    if (state.activeStepId === "executor") {
+      renderAll();
+    } else {
+      renderProjectContext();
+      renderStepRail();
+    }
   }
 }
 
@@ -3404,6 +4334,11 @@ async function regenerateAllSvg(projectName) {
   const activeProfile = getActiveProfile();
   if (!activeProfile) {
     showFlash("先配置并选中一个模型 profile", "error");
+    return;
+  }
+
+  if (state.svgGeneration.inProgress) {
+    showFlash("SVG 正在生成中，请等待完成", "error");
     return;
   }
 
@@ -3429,6 +4364,7 @@ async function regenerateAllSvg(projectName) {
   try {
     const response = await fetch(`/api/projects/${encodeURIComponent(projectName)}/regenerate-svg`, {
       method: "POST",
+      credentials: "same-origin",
       headers: {
         "Content-Type": "application/json",
       },
@@ -3440,7 +4376,16 @@ async function regenerateAllSvg(projectName) {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `HTTP ${response.status}`);
+      const msg = errorData.error || errorData.detail || `HTTP ${response.status}`;
+      if (response.status === 409) {
+        state.svgGeneration.inProgress = true;
+        state.svgGeneration.log = ["后端有任务正在运行，请等待完成后重试"];
+        showFlash("该项目有任务正在运行，请稍候", "error");
+        appendLog("重新生成冲突", msg);
+        renderAll();
+        return;
+      }
+      throw new Error(msg);
     }
 
     const reader = response.body.getReader();
@@ -3498,11 +4443,14 @@ async function regenerateAllSvg(projectName) {
     state.svgGeneration.inProgress = false;
     state.svgGeneration.mode = "generate";
     await loadDashboard();
-    renderAll();
+    if (state.activeStepId === "executor") {
+      renderAll();
+    } else {
+      renderProjectContext();
+      renderStepRail();
+    }
   }
-}
-
-async function deleteAllSvg(projectName) {
+}async function deleteAllSvg(projectName) {
   if (!confirm("确定要删除所有 SVG 文件吗？这将同时删除 svg_output/ 和 svg_final/ 中的所有 SVG 文件，以及相关的讲稿文件。")) {
     return;
   }
@@ -3564,7 +4512,7 @@ function handleSseEvent(eventType, data) {
         state.svgGeneration.log.push(`错误: ${data.errors.length} 页`);
       }
       showFlash(`SVG ${isRegenerate ? "重新生成" : "生成"}完成: ${data.generated}/${data.total_pages} 页`);
-      appendLog(`SVG ${isRegenerate ? "重新生成" : "生成"}完成`, state.svgGeneration.log.join("\n"));
+      appendLog(`SVG ${isRegenerate ? "重新生成" : "生成"}完成`, `${state.svgGeneration.generatedPages} 页`);
       if (data.project) {
         state.selectedProject = data.project;
       }
@@ -3574,8 +4522,13 @@ function handleSseEvent(eventType, data) {
       console.log("Unknown SSE event:", eventType, data);
   }
 
-  // Re-render to update progress
-  renderAll();
+  // Re-render: only update executor stage if user is on it; always update context
+  if (state.activeStepId === "executor") {
+    renderAll();
+  } else {
+    renderProjectContext();
+    renderStepRail();
+  }
 }
 
 async function generateImage(projectName) {
@@ -3624,7 +4577,7 @@ async function generateImage(projectName) {
     state.imageGeneration.prompt = "";
     state.imageGeneration.filename = "";
     showFlash(`图片生成成功: ${data.image.filename}`);
-    appendLog("图片生成成功", `Prompt: ${prompt}\n文件: ${data.image.filename}`);
+    appendLog("图片生成成功", data.image?.filename || prompt);
     if (data.project) {
       state.selectedProject = data.project;
     }
@@ -3637,6 +4590,135 @@ async function generateImage(projectName) {
   } finally {
     renderAll();
   }
+}
+
+async function generateSingleImageFromResource(projectName, imgResource, idx) {
+  const activeProfile = state.imageModelConfig?.active_profile;
+  if (!activeProfile) {
+    showFlash("先配置并选中一个图片生成模型", "error");
+    return;
+  }
+
+  const prompt = imgResource.description || "";
+  if (!prompt) {
+    showFlash(`图片 ${imgResource.filename} 没有描述信息`, "error");
+    return;
+  }
+
+  state.imageGeneration.inProgress = true;
+  state.imageGeneration.status = `正在生成: ${imgResource.filename}`;
+  state.imageGeneration.lastResult = null;
+  state.imageGeneration.error = null;
+
+  clearFlash();
+  renderAll();
+
+  try {
+    const data = await apiFetch(`/api/projects/${encodeURIComponent(projectName)}/generate-image`, {
+      method: "POST",
+      body: JSON.stringify({
+        profile_id: activeProfile.id,
+        prompt: prompt,
+        aspect_ratio: imgResource.aspect_ratio || "16:9",
+        image_size: "1K",
+        filename: imgResource.filename.replace(/\.[^.]+$/, ""), // Remove extension
+      }),
+    });
+
+    state.imageGeneration.inProgress = false;
+    state.imageGeneration.lastResult = data.image;
+    state.imageGeneration.status = "";
+    showFlash(`图片生成成功: ${data.image.filename}`);
+    appendLog("图片生成成功", imgResource.filename);
+    if (data.project) {
+      state.selectedProject = data.project;
+    }
+    await loadDashboard();
+  } catch (error) {
+    state.imageGeneration.inProgress = false;
+    state.imageGeneration.error = error.message;
+    state.imageGeneration.status = "";
+    showFlash(`图片生成失败: ${error.message}`, "error");
+    appendLog("图片生成失败", `${imgResource.filename}: ${error.message}`);
+  } finally {
+    renderAll();
+  }
+}
+
+async function generateAllPendingImages(projectName) {
+  const activeProfile = state.imageModelConfig?.active_profile;
+  if (!activeProfile) {
+    showFlash("先配置并选中一个图片生成模型", "error");
+    return;
+  }
+
+  const imageResources = state.selectedProject?.image_resources || [];
+  const pendingImages = imageResources.filter((img) => img.status === "pending");
+
+  if (pendingImages.length === 0) {
+    showFlash("没有待生成的图片", "info");
+    return;
+  }
+
+  state.imageGeneration.inProgress = true;
+  state.imageGeneration.status = `准备批量生成 ${pendingImages.length} 张图片...`;
+  state.imageGeneration.lastResult = null;
+  state.imageGeneration.error = null;
+
+  clearFlash();
+  renderAll();
+
+  let successCount = 0;
+  let failCount = 0;
+  const errors = [];
+
+  for (let i = 0; i < pendingImages.length; i++) {
+    const img = pendingImages[i];
+    state.imageGeneration.status = `正在生成 (${i + 1}/${pendingImages.length}): ${img.filename}`;
+    renderAll();
+
+    try {
+      const data = await apiFetch(`/api/projects/${encodeURIComponent(projectName)}/generate-image`, {
+        method: "POST",
+        body: JSON.stringify({
+          profile_id: activeProfile.id,
+          prompt: img.description || "",
+          aspect_ratio: img.aspect_ratio || "16:9",
+          image_size: "1K",
+          filename: img.filename.replace(/\.[^.]+$/, ""),
+        }),
+      });
+
+      successCount++;
+      appendLog("图片生成成功", `(${i + 1}/${pendingImages.length}) ${img.filename}`);
+
+      // Update project state
+      if (data.project) {
+        state.selectedProject = data.project;
+      }
+    } catch (error) {
+      failCount++;
+      errors.push(`${img.filename}: ${error.message}`);
+      appendLog("图片生成失败", `${img.filename}: ${error.message}`);
+    }
+
+    // Small delay between requests
+    if (i < pendingImages.length - 1) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+  }
+
+  state.imageGeneration.inProgress = false;
+  state.imageGeneration.status = "";
+
+  if (failCount === 0) {
+    showFlash(`批量生成完成: ${successCount} 张图片全部成功`);
+  } else {
+    showFlash(`批量生成完成: ${successCount} 成功, ${failCount} 失败`, failCount > 0 ? "error" : "info");
+  }
+
+  await loadDashboard();
+  renderAll();
 }
 
 async function selectImageProfile(profileId) {
@@ -3682,6 +4764,422 @@ function beginNewProfile() {
   renderModelConfigModal();
 }
 
+// ============ Template Manager Functions ============
+
+async function openTemplateManagerModal() {
+  state.templateManager.isOpen = true;
+  state.templateManager.selectedTemplate = null;
+  state.templateManager.searchQuery = "";
+  state.templateManager.filterCategory = "";
+  state.templateManager.deleteConfirm = null;
+  state.templateManager.uploadMode = false;
+  state.templateManager.uploadFiles = [];
+  if (elements.tmSearchInput) elements.tmSearchInput.value = "";
+  if (elements.tmCategoryFilter) elements.tmCategoryFilter.value = "";
+  elements.templateManagerModal?.classList.remove("hidden");
+  elements.templateManagerModal?.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+  trapFocus(elements.templateManagerModal);
+
+  try {
+    const data = await apiFetch("/api/templates");
+    state.templateManager.templates = data.templates || [];
+    state.templateManager.categories = data.categories || {};
+  } catch (error) {
+    showFlash("加载模板列表失败: " + error.message, "error");
+  }
+  renderTemplateManagerList();
+  renderTemplateManagerDetail();
+}
+
+function closeTemplateManagerModal() {
+  state.templateManager.isOpen = false;
+  elements.templateManagerModal?.classList.add("hidden");
+  elements.templateManagerModal?.setAttribute("aria-hidden", "true");
+  releaseFocus();
+  document.body.classList.remove("modal-open");
+}
+
+function getFilteredTemplatesForManager() {
+  let list = state.templateManager.templates;
+  const query = state.templateManager.searchQuery.toLowerCase().trim();
+  const cat = state.templateManager.filterCategory;
+
+  if (cat) {
+    const catLayouts = state.templateManager.categories[cat]?.layouts || [];
+    list = list.filter((t) => catLayouts.includes(t.id));
+  }
+  if (query) {
+    list = list.filter((t) =>
+      t.label.toLowerCase().includes(query)
+      || t.id.toLowerCase().includes(query)
+      || (t.keywords || []).some((k) => k.toLowerCase().includes(query))
+      || (t.summary || "").toLowerCase().includes(query)
+    );
+  }
+  return list;
+}
+
+function renderTemplateManagerList() {
+  if (!elements.tmTemplateList) return;
+  const filtered = getFilteredTemplatesForManager();
+  if (filtered.length === 0) {
+    elements.tmTemplateList.innerHTML = `
+      <div class="empty-state">
+        <strong>没有匹配的模板</strong>
+        <p class="helper">换个关键词或分类试试。</p>
+      </div>
+    `;
+    return;
+  }
+  elements.tmTemplateList.innerHTML = filtered.map((t) => {
+    const isSelected = state.templateManager.selectedTemplate?.id === t.id;
+    return `
+      <article class="pm-item ${isSelected ? "pm-item-active" : ""}" data-tm-id="${escapeHtml(t.id)}">
+        <h3 class="pm-item-name">${escapeHtml(t.label)}</h3>
+        <p class="pm-item-meta">${escapeHtml(t.id)} · ${t.svg_count} 页</p>
+        <div class="pm-item-badges">
+          ${(t.keywords || []).slice(0, 3).map((k) => `<span class="badge">${escapeHtml(k)}</span>`).join("")}
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+function renderTemplateManagerDetail() {
+  if (!elements.tmTemplateDetail) return;
+  const tm = state.templateManager;
+
+  // Upload mode
+  if (tm.uploadMode) {
+    elements.tmTemplateDetail.innerHTML = `
+      <div class="stack">
+        <div class="section-head">
+          <p class="section-kicker">Upload</p>
+          <h2>上传新模板</h2>
+        </div>
+        <form id="tmUploadForm" class="stack">
+          <div class="two-col">
+            <label class="field">
+              <span>模板 ID（目录名）</span>
+              <input type="text" name="name" placeholder="如 my_template" required>
+            </label>
+            <label class="field">
+              <span>显示名称</span>
+              <input type="text" name="label" placeholder="如 我的模板" required>
+            </label>
+          </div>
+          <label class="field">
+            <span>简介</span>
+            <input type="text" name="summary" placeholder="适用场景描述">
+          </label>
+          <div class="two-col">
+            <label class="field">
+              <span>分类</span>
+              <select name="category">
+                <option value="general">通用风格</option>
+                <option value="brand">品牌风格</option>
+                <option value="scenario">场景专用</option>
+                <option value="government">政府企业</option>
+                <option value="special">特殊风格</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>关键词（逗号分隔）</span>
+              <input type="text" name="keywords" placeholder="商务, 简约, 汇报">
+            </label>
+          </div>
+          <div class="upload-dropzone" id="tmDropzone">
+            <p class="upload-dropzone-label">点击选择或拖拽文件到此处</p>
+            <p class="helper">需要至少 1 个 SVG 文件，建议包含 design_spec.md</p>
+            <input type="file" id="tmFileInput" multiple accept=".svg,.md,.png,.jpg,.jpeg" style="display:none;">
+          </div>
+          <div id="tmFileList" class="upload-file-list"></div>
+          <div class="action-row">
+            <button type="submit" class="button button-primary">上传模板</button>
+            <button type="button" class="button button-ghost" data-tm-action="cancel-upload">取消</button>
+          </div>
+        </form>
+      </div>
+    `;
+    bindTemplateUploadEvents();
+    return;
+  }
+
+  const t = tm.selectedTemplate;
+  if (!t) {
+    elements.tmTemplateDetail.innerHTML = `<p class="helper">选择左侧模板查看详情，或点击下方上传新模板。</p>`;
+    return;
+  }
+
+  // Delete confirm
+  if (tm.deleteConfirm === t.id) {
+    elements.tmTemplateDetail.innerHTML = `
+      <div class="pm-delete-confirm">
+        <h4>确认删除模板？</h4>
+        <p>模板 <strong>${escapeHtml(t.label)}</strong>（${escapeHtml(t.id)}）将被永久删除。</p>
+        <div class="pm-delete-confirm-actions">
+          <button class="button button-ghost" data-tm-action="cancel-delete">取消</button>
+          <button class="button button-danger" data-tm-action="confirm-delete" data-tm-id="${escapeHtml(t.id)}">确认删除</button>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  // Normal detail
+  const previewHtml = t.preview_url
+    ? `<img src="${t.preview_url}" alt="${escapeHtml(t.label)}" style="width:100%;border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:12px;">`
+    : (t.svg_files?.length > 0
+      ? `<img src="/files/templates/${encodeURIComponent(t.id)}/${encodeURIComponent(t.svg_files[0])}" alt="preview" style="width:100%;max-height:200px;object-fit:contain;border-radius:var(--radius-sm);border:1px solid var(--border);background:#fff;margin-bottom:12px;">`
+      : "");
+
+  elements.tmTemplateDetail.innerHTML = `
+    <div class="stack">
+      ${previewHtml}
+      <div class="pm-detail-header">
+        <h3 class="pm-detail-title">${escapeHtml(t.label)}</h3>
+        <div class="pm-detail-actions">
+          <button class="button button-danger" data-tm-action="delete" data-tm-id="${escapeHtml(t.id)}">删除</button>
+        </div>
+      </div>
+      <p class="helper">${escapeHtml(t.summary || "")}</p>
+      <div class="pm-detail-section">
+        <h4>基本信息</h4>
+        <div class="pm-detail-grid">
+          <div class="pm-detail-item">
+            <span class="pm-detail-item-label">模板 ID</span>
+            <span class="pm-detail-item-value">${escapeHtml(t.id)}</span>
+          </div>
+          <div class="pm-detail-item">
+            <span class="pm-detail-item-label">SVG 页面</span>
+            <span class="pm-detail-item-value">${t.svg_count} 页</span>
+          </div>
+          <div class="pm-detail-item">
+            <span class="pm-detail-item-label">设计规范</span>
+            <span class="pm-detail-item-value">${t.has_design_spec ? "有" : "无"}</span>
+          </div>
+          <div class="pm-detail-item">
+            <span class="pm-detail-item-label">主题</span>
+            <span class="pm-detail-item-value">${escapeHtml(t.theme_mode || "-")}</span>
+          </div>
+        </div>
+      </div>
+      ${t.keywords?.length ? `
+        <div class="pm-detail-section">
+          <h4>关键词</h4>
+          <div class="badge-row">
+            ${t.keywords.map((k) => `<span class="badge">${escapeHtml(k)}</span>`).join("")}
+          </div>
+        </div>
+      ` : ""}
+      <div class="pm-detail-section">
+        <h4>SVG 文件</h4>
+        <div class="pm-file-list">
+          ${(t.svg_files || []).map((f) => `
+            <div class="pm-file-item">
+              <span class="pm-file-icon svg-icon">S</span>
+              <span class="pm-file-name">${escapeHtml(f)}</span>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+      ${t.assets?.length ? `
+        <div class="pm-detail-section">
+          <h4>素材文件</h4>
+          <div class="pm-file-list">
+            ${t.assets.map((f) => `
+              <div class="pm-file-item">
+                <span class="pm-file-icon pptx-icon">A</span>
+                <span class="pm-file-name">${escapeHtml(f)}</span>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      ` : ""}
+    </div>
+  `;
+}
+
+function bindTemplateUploadEvents() {
+  const dropzone = document.getElementById("tmDropzone");
+  const fileInput = document.getElementById("tmFileInput");
+  const form = document.getElementById("tmUploadForm");
+
+  if (dropzone && fileInput) {
+    dropzone.addEventListener("click", () => fileInput.click());
+    dropzone.addEventListener("dragover", (e) => { e.preventDefault(); dropzone.classList.add("dragover"); });
+    dropzone.addEventListener("dragleave", () => dropzone.classList.remove("dragover"));
+    dropzone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropzone.classList.remove("dragover");
+      addUploadFiles(Array.from(e.dataTransfer.files));
+    });
+    fileInput.addEventListener("change", () => {
+      addUploadFiles(Array.from(fileInput.files));
+      fileInput.value = "";
+    });
+  }
+
+  if (form) {
+    form.addEventListener("submit", handleTemplateUpload);
+  }
+
+  // Cancel upload and detail action buttons
+  elements.tmTemplateDetail?.querySelectorAll("[data-tm-action]").forEach((btn) => {
+    btn.addEventListener("click", () => handleTemplateDetailAction(btn));
+  });
+}
+
+function addUploadFiles(newFiles) {
+  for (const f of newFiles) {
+    if (!state.templateManager.uploadFiles.some((e) => e.name === f.name)) {
+      state.templateManager.uploadFiles.push(f);
+    }
+  }
+  renderUploadFileList();
+}
+
+function removeUploadFile(name) {
+  state.templateManager.uploadFiles = state.templateManager.uploadFiles.filter((f) => f.name !== name);
+  renderUploadFileList();
+}
+
+function renderUploadFileList() {
+  const container = document.getElementById("tmFileList");
+  if (!container) return;
+  const files = state.templateManager.uploadFiles;
+  if (files.length === 0) {
+    container.innerHTML = "";
+    return;
+  }
+  container.innerHTML = files.map((f) => `
+    <div class="upload-file-item">
+      <span>${escapeHtml(f.name)} (${(f.size / 1024).toFixed(1)} KB)</span>
+      <button type="button" class="button button-ghost" data-remove-file="${escapeHtml(f.name)}">移除</button>
+    </div>
+  `).join("");
+  container.querySelectorAll("[data-remove-file]").forEach((btn) => {
+    btn.addEventListener("click", () => removeUploadFile(btn.dataset.removeFile));
+  });
+}
+
+async function handleTemplateUpload(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const formData = new FormData();
+  formData.append("name", form.elements.name.value.trim());
+  formData.append("label", form.elements.label.value.trim());
+  formData.append("summary", form.elements.summary?.value?.trim() || "");
+  formData.append("category", form.elements.category?.value || "general");
+  formData.append("keywords", form.elements.keywords?.value?.trim() || "");
+
+  for (const file of state.templateManager.uploadFiles) {
+    formData.append("files", file);
+  }
+
+  if (!formData.get("name") || !formData.get("label")) {
+    showFlash("模板 ID 和显示名称为必填项", "error");
+    return;
+  }
+  if (state.templateManager.uploadFiles.length === 0) {
+    showFlash("请至少上传一个文件", "error");
+    return;
+  }
+
+  try {
+    setBusy(true);
+    const response = await fetch("/api/templates/upload", {
+      method: "POST",
+      credentials: "same-origin",
+      body: formData,
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.detail || data.error || `HTTP ${response.status}`);
+    }
+    showFlash(`模板 "${formData.get("name")}" 上传成功`);
+    appendLog("模板上传成功", formData.get("name"));
+    state.templateManager.uploadMode = false;
+    state.templateManager.uploadFiles = [];
+    // Reload templates
+    const freshData = await apiFetch("/api/templates");
+    state.templateManager.templates = freshData.templates || [];
+    state.templateManager.categories = freshData.categories || {};
+    // Also refresh step 3 template cache
+    state.templates = freshData.templates || [];
+    state.templateCategories = freshData.categories || {};
+    renderTemplateManagerList();
+    renderTemplateManagerDetail();
+  } catch (error) {
+    showFlash("上传失败: " + error.message, "error");
+    appendLog("模板上传失败", error.message);
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function deleteTemplate(templateId) {
+  try {
+    setBusy(true);
+    await apiFetch(`/api/templates/${encodeURIComponent(templateId)}`, { method: "DELETE" });
+    showFlash(`模板 "${templateId}" 已删除`);
+    appendLog("模板已删除", templateId);
+    state.templateManager.selectedTemplate = null;
+    state.templateManager.deleteConfirm = null;
+    // Reload
+    const freshData = await apiFetch("/api/templates");
+    state.templateManager.templates = freshData.templates || [];
+    state.templateManager.categories = freshData.categories || {};
+    state.templates = freshData.templates || [];
+    state.templateCategories = freshData.categories || {};
+    renderTemplateManagerList();
+    renderTemplateManagerDetail();
+  } catch (error) {
+    showFlash("删除失败: " + error.message, "error");
+    appendLog("模板删除失败", error.message);
+  } finally {
+    setBusy(false);
+  }
+}
+
+function handleTemplateManagerListClick(event) {
+  const item = event.target.closest("[data-tm-id]");
+  if (!item) return;
+  const id = item.dataset.tmId;
+  const t = state.templateManager.templates.find((t) => t.id === id);
+  if (t) {
+    state.templateManager.selectedTemplate = t;
+    state.templateManager.deleteConfirm = null;
+    state.templateManager.uploadMode = false;
+    renderTemplateManagerList();
+    renderTemplateManagerDetail();
+  }
+}
+
+function handleTemplateDetailAction(btn) {
+  const action = btn.dataset.tmAction;
+  const id = btn.dataset.tmId;
+  if (action === "delete") {
+    state.templateManager.deleteConfirm = id;
+    renderTemplateManagerDetail();
+  } else if (action === "cancel-delete") {
+    state.templateManager.deleteConfirm = null;
+    renderTemplateManagerDetail();
+  } else if (action === "confirm-delete") {
+    deleteTemplate(id);
+  } else if (action === "cancel-upload") {
+    state.templateManager.uploadMode = false;
+    state.templateManager.uploadFiles = [];
+    renderTemplateManagerDetail();
+  }
+}
+
+function handleTemplateManagerDetailClick(event) {
+  const btn = event.target.closest("[data-tm-action]");
+  if (btn) handleTemplateDetailAction(btn);
+}
+
 async function bootstrap() {
   try {
     setBusy(true);
@@ -3702,7 +5200,10 @@ async function bootstrap() {
       });
     }
     elements.openModelConfigButton?.addEventListener("click", openModelConfigModal);
+    elements.openAdminPanelButton?.addEventListener("click", openAdminPanel);
+    elements.logoutButton?.addEventListener("click", logout);
     elements.closeModelConfigButton?.addEventListener("click", closeModelConfigModal);
+    elements.closeAdminPanelButton?.addEventListener("click", closeAdminPanel);
     elements.clearLogButton?.addEventListener("click", () => {
       elements.logOutput.textContent = "等待操作…";
     });
@@ -3724,12 +5225,124 @@ async function bootstrap() {
     elements.openProjectManagerButton?.addEventListener("click", openProjectManagerModal);
     elements.closeProjectManagerButton?.addEventListener("click", closeProjectManagerModal);
     elements.projectManagerBackdrop?.addEventListener("click", closeProjectManagerModal);
+    elements.adminPanelBackdrop?.addEventListener("click", closeAdminPanel);
+    // Template Manager bindings
+    elements.openTemplateManagerButton?.addEventListener("click", openTemplateManagerModal);
+    elements.closeTemplateManagerButton?.addEventListener("click", closeTemplateManagerModal);
+    elements.templateManagerBackdrop?.addEventListener("click", closeTemplateManagerModal);
+    elements.tmSearchInput?.addEventListener("input", (event) => {
+      state.templateManager.searchQuery = event.currentTarget.value || "";
+      renderTemplateManagerList();
+    });
+    elements.tmCategoryFilter?.addEventListener("change", (event) => {
+      state.templateManager.filterCategory = event.target.value || "";
+      renderTemplateManagerList();
+    });
+    elements.tmTemplateList?.addEventListener("click", handleTemplateManagerListClick);
+    elements.tmTemplateDetail?.addEventListener("click", handleTemplateManagerDetailClick);
+    elements.tmShowUploadButton?.addEventListener("click", () => {
+      state.templateManager.uploadMode = true;
+      state.templateManager.uploadFiles = [];
+      state.templateManager.selectedTemplate = null;
+      renderTemplateManagerList();
+      renderTemplateManagerDetail();
+    });
     elements.pmSearchInput?.addEventListener("input", (event) => {
       state.projectManager.searchQuery = event.currentTarget.value || "";
       renderProjectManagerList();
     });
     elements.pmProjectList?.addEventListener("click", handleProjectManagerListClick);
     elements.pmProjectDetail?.addEventListener("click", handleProjectManagerDetailClick);
+    elements.adminUsersList?.addEventListener("click", handleAdminUsersListClick);
+    elements.adminUserSearchInput?.addEventListener("input", (event) => {
+      state.admin.userQuery = event.currentTarget.value || "";
+      state.admin.page = 1;
+      loadAdminData().then(renderAdminPanel).catch((error) => showFlash(error.message, "error"));
+    });
+    elements.adminRoleFilter?.addEventListener("change", (event) => {
+      state.admin.roleFilter = event.target.value || "";
+      state.admin.page = 1;
+      loadAdminData().then(renderAdminPanel).catch((error) => showFlash(error.message, "error"));
+    });
+    elements.adminStatusFilter?.addEventListener("change", (event) => {
+      state.admin.statusFilter = event.target.value || "";
+      state.admin.page = 1;
+      loadAdminData().then(renderAdminPanel).catch((error) => showFlash(error.message, "error"));
+    });
+    elements.adminPrevPage?.addEventListener("click", () => {
+      if (state.admin.page <= 1) return;
+      state.admin.page -= 1;
+      loadAdminData().then(renderAdminPanel).catch((error) => showFlash(error.message, "error"));
+    });
+    elements.adminNextPage?.addEventListener("click", () => {
+      const totalPages = Math.max(1, Math.ceil(state.admin.totalUsers / state.admin.pageSize));
+      if (state.admin.page >= totalPages) return;
+      state.admin.page += 1;
+      loadAdminData().then(renderAdminPanel).catch((error) => showFlash(error.message, "error"));
+    });
+    elements.adminAuditActionInput?.addEventListener("input", (event) => {
+      state.admin.auditAction = event.currentTarget.value || "";
+      state.admin.auditPage = 1;
+      loadAdminData().then(renderAdminPanel).catch((error) => showFlash(error.message, "error"));
+    });
+    elements.adminAuditResourceInput?.addEventListener("input", (event) => {
+      state.admin.auditResource = event.currentTarget.value || "";
+      state.admin.auditPage = 1;
+      loadAdminData().then(renderAdminPanel).catch((error) => showFlash(error.message, "error"));
+    });
+    elements.adminAuditStartInput?.addEventListener("change", (event) => {
+      state.admin.auditStart = event.currentTarget.value || "";
+      state.admin.auditPage = 1;
+      loadAdminData().then(renderAdminPanel).catch((error) => showFlash(error.message, "error"));
+    });
+    elements.adminAuditEndInput?.addEventListener("change", (event) => {
+      state.admin.auditEnd = event.currentTarget.value || "";
+      state.admin.auditPage = 1;
+      loadAdminData().then(renderAdminPanel).catch((error) => showFlash(error.message, "error"));
+    });
+    elements.adminAuditPrevPage?.addEventListener("click", () => {
+      if (state.admin.auditPage <= 1) return;
+      state.admin.auditPage -= 1;
+      loadAdminData().then(renderAdminPanel).catch((error) => showFlash(error.message, "error"));
+    });
+    elements.adminAuditNextPage?.addEventListener("click", () => {
+      const totalPages = Math.max(1, Math.ceil(state.admin.totalLogs / state.admin.auditPageSize));
+      if (state.admin.auditPage >= totalPages) return;
+      state.admin.auditPage += 1;
+      loadAdminData().then(renderAdminPanel).catch((error) => showFlash(error.message, "error"));
+    });
+    elements.adminAuditQuick24h?.addEventListener("click", () => {
+      setAuditRange(24);
+    });
+    elements.adminAuditQuick7d?.addEventListener("click", () => {
+      setAuditRange(24 * 7);
+    });
+    elements.adminAuditClear?.addEventListener("click", () => {
+      state.admin.auditAction = "";
+      state.admin.auditResource = "";
+      state.admin.auditStart = "";
+      state.admin.auditEnd = "";
+      state.admin.auditPage = 1;
+      loadAdminData().then(renderAdminPanel).catch((error) => showFlash(error.message, "error"));
+    });
+    elements.adminAuditCopy?.addEventListener("click", () => {
+      copyAuditLogs().catch((error) => showFlash(error.message, "error"));
+    });
+    elements.adminAuditExport?.addEventListener("click", () => {
+      window.open(buildAuditExportUrl(), "_blank");
+    });
+    elements.adminAuditLog?.addEventListener("click", (event) => {
+      const target = event.target.closest("[data-admin-audit-user]");
+      if (!target) return;
+      const userId = target.dataset.adminAuditUser;
+      if (!userId) return;
+      state.admin.selectedUserId = userId;
+      state.admin.auditPage = 1;
+      loadAdminUserDetail(userId)
+        .then(loadAdminData)
+        .then(renderAdminPanel)
+        .catch((error) => showFlash(error.message, "error"));
+    });
     // Image model modal bindings
     elements.closeImageModelButton?.addEventListener("click", closeImageModelModal);
     elements.imageModelBackdrop?.addEventListener("click", closeImageModelModal);
@@ -3751,8 +5364,10 @@ async function bootstrap() {
         closeModelConfigModal();
         closeSvgPreviewModal();
         closeProjectManagerModal();
+        closeTemplateManagerModal();
         closeImageModelModal();
         closeDocPreview();
+        closeAdminPanel();
       }
       // Arrow keys for SVG preview navigation
       if (elements.svgPreviewModal && !elements.svgPreviewModal.classList.contains("hidden")) {
@@ -3763,10 +5378,13 @@ async function bootstrap() {
         }
       }
     });
+    await loadCurrentUser();
     await loadDashboard({ preserveSelection: false });
   } catch (error) {
-    showFlash(error.message, "error");
-    appendLog("初始化失败", error.message);
+    const label = error?.path ? `${error.path} · ${error.message}` : error.message;
+    showFlash(label, "error");
+    appendLog("初始化失败", label);
+    renderInitializationError(error);
   } finally {
     setBusy(false);
   }
@@ -3784,6 +5402,7 @@ function openProjectManagerModal() {
   }
   elements.projectManagerModal?.classList.remove("hidden");
   document.body.classList.add("modal-open");
+  trapFocus(elements.projectManagerModal);
   renderProjectManagerList();
   renderProjectManagerDetail();
 }
@@ -3791,6 +5410,7 @@ function openProjectManagerModal() {
 function closeProjectManagerModal() {
   state.projectManager.isOpen = false;
   elements.projectManagerModal?.classList.add("hidden");
+  releaseFocus();
   document.body.classList.remove("modal-open");
 }
 
@@ -3825,9 +5445,9 @@ function renderProjectManagerList() {
   }
 
   elements.pmProjectList.innerHTML = filteredProjects.map((project) => {
-    const isSelected = state.projectManager.selectedProject?.name === project.name;
+    const isSelected = getProjectRef(state.projectManager.selectedProject) === getProjectRef(project);
     return `
-      <article class="pm-item ${isSelected ? "pm-item-active" : ""}" data-pm-project="${escapeHtml(project.name)}">
+      <article class="pm-item ${isSelected ? "pm-item-active" : ""}" data-pm-project="${escapeHtml(getProjectRef(project))}">
         <h3 class="pm-item-name">${escapeHtml(project.name)}</h3>
         <p class="pm-item-meta">${escapeHtml(project.canvas_label)} · ${escapeHtml(project.created_at)}</p>
         <div class="pm-item-badges">
@@ -3856,7 +5476,7 @@ function renderProjectManagerDetail() {
   }
 
   // Delete confirmation view
-  if (state.projectManager.deleteConfirm === project.name) {
+  if (state.projectManager.deleteConfirm === getProjectRef(project)) {
     elements.pmProjectDetail.innerHTML = `
       <div class="pm-delete-confirm">
         <h4>确认删除项目？</h4>
@@ -3864,7 +5484,7 @@ function renderProjectManagerDetail() {
         <p class="helper">路径: ${escapeHtml(project.path)}</p>
         <div class="pm-delete-confirm-actions">
           <button class="button button-ghost" data-pm-action="cancel-delete">取消</button>
-          <button class="button button-primary" data-pm-action="confirm-delete" data-pm-project="${escapeHtml(project.name)}">确认删除</button>
+          <button class="button button-primary" data-pm-action="confirm-delete" data-pm-project="${escapeHtml(getProjectRef(project))}">确认删除</button>
         </div>
       </div>
     `;
@@ -3879,8 +5499,8 @@ function renderProjectManagerDetail() {
     <div class="pm-detail-header">
       <h3 class="pm-detail-title">${escapeHtml(project.name)}</h3>
       <div class="pm-detail-actions">
-        <button class="button button-ghost" data-pm-action="switch" data-pm-project="${escapeHtml(project.name)}">切换到此项目</button>
-        <button class="button button-primary" data-pm-action="delete" data-pm-project="${escapeHtml(project.name)}">删除</button>
+        <button class="button button-ghost" data-pm-action="switch" data-pm-project="${escapeHtml(getProjectRef(project))}">切换到此项目</button>
+        <button class="button button-primary" data-pm-action="delete" data-pm-project="${escapeHtml(getProjectRef(project))}">删除</button>
       </div>
     </div>
     <div class="pm-detail-section">
@@ -3945,7 +5565,7 @@ function handleProjectManagerListClick(event) {
     return;
   }
   const projectName = item.dataset.pmProject;
-  const project = state.projects.find((p) => p.name === projectName);
+  const project = getSelectedProjectByRef(projectName);
   if (project) {
     state.projectManager.selectedProject = project;
     state.projectManager.deleteConfirm = null;
@@ -3988,7 +5608,7 @@ async function deleteProject(projectName) {
     });
 
     // If deleted project was selected, clear selection
-    if (state.selectedProject?.name === projectName) {
+    if (getProjectRef(state.selectedProject) === projectName) {
       state.selectedProject = null;
     }
 
@@ -4005,7 +5625,7 @@ async function deleteProject(projectName) {
     renderProjectManagerDetail();
   } catch (error) {
     showFlash(error.message, "error");
-    appendLog("删除项目失败", error.payload ? JSON.stringify(error.payload, null, 2) : error.message);
+    appendLog("删除项目失败", error.message);
   } finally {
     setBusy(false);
   }

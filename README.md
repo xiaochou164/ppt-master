@@ -223,23 +223,51 @@ export IMAGE_MODEL="gemini-3.1-flash-image-preview"
 If you prefer operating the local workflow in a browser, start the built-in web console:
 
 ```bash
-python3 webapp/server.py
+.venv/bin/python webapp/server.py
 ```
 
 Then open `http://127.0.0.1:8765`.
 
+If you do not have the virtualenv ready yet, install the dependencies first:
+
+```bash
+python3 -m pip install -r requirements.txt
+```
+
+To enable unified Authentik SSO for the web console, configure these environment variables:
+
+```bash
+AUTH_ENABLED=true
+AUTHENTIK_ISSUER_URL=https://auth.example.com/application/o/ppt-master
+AUTHENTIK_CLIENT_ID=your-client-id
+AUTHENTIK_CLIENT_SECRET=your-client-secret
+AUTHENTIK_ADMIN_GROUPS=ppt-master-admins
+AUTHENTIK_SYNC_MODE=if_present
+PPT_MASTER_PUBLIC_BASE_URL=http://127.0.0.1:8765
+SESSION_SECRET=replace-with-a-random-secret
+APP_ENCRYPTION_KEY=replace-with-a-random-secret
+```
+
+Notes:
+
+- `PPT_MASTER_PUBLIC_BASE_URL` determines the callback origin, and the callback path is always `/auth/callback`
+- members of `AUTHENTIK_ADMIN_GROUPS` are auto-mapped to the local `admin` role
+- `AUTHENTIK_SYNC_MODE` supports `strict` (force overwrite), `if_present` (only update when groups are returned), `disabled` (no auto sync)
+- if `AUTH_ENABLED=true` but the config is incomplete, the login page now shows the missing items directly
+
 The console supports:
 
-- **Project Management**: Create projects, import sources (local files, URLs, pasted text)
-- **Template Selection**: Browse and apply design templates
-- **Strategist Phase**: AI-powered content analysis and design specification generation
+- **Project Management**: Create projects, import sources (local files, URLs, pasted text), browse imported sources
+- **Template Management**: Browse, upload, and delete design templates; apply templates to projects
+- **Strategist Phase**: AI-powered content analysis and design specification generation with collapsible confirmation sections
 - **AI Image Generation**: Generate images directly in the browser (Gemini/OpenAI backends)
-- **SVG Page Generation**: Stream-generate SVG slides with real-time progress (SSE)
+- **SVG Page Generation**: Stream-generate SVG slides with real-time progress bar and percentage display (SSE)
 - **Regenerate & Delete**: Regenerate specific pages or all SVG slides; delete unwanted pages
 - **Speaker Notes**: Generate `notes/total.md` via LLM API
 - **Post-processing**: Run Split Notes, Finalize SVG, Export PPTX in sequence
 - **Preview & Download**: Preview SVG pages, view Markdown documents in popup, download PPTX outputs
 - **Model Configuration**: Manage multiple text and image model profiles (OpenAI, Gemini, etc.)
+- **UX Enhancements**: Auto-dismissing flash messages, step-by-step navigation guides, skeleton loading, inline form validation, focus-trapped modals, responsive mobile layout, keyboard accessibility (Escape to close, Tab trapping)
 
 ---
 
