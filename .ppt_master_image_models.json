@@ -1,0 +1,13 @@
+{
+  "profiles": [
+    {
+      "id": "3278b67ceab84cde91adca4ea55be0f1",
+      "name": "硅基流动",
+      "backend": "siliconflow",
+      "model": "Kwai-Kolors/Kolors",
+      "base_url": "https://api.siliconflow.cn/v1",
+      "api_key": "sk-djofgyyzroqendmnizmbodbkmjhzljmviwbcsrqdvtpaxukm"
+    }
+  ],
+  "selected_profile_id": "3278b67ceab84cde91adca4ea55be0f1"
+}

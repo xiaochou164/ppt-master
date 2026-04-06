@@ -1,0 +1,80 @@
+<svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1280" height="720" fill="#FFFFFF"/>
+  
+  <!-- Header bar -->
+  <rect x="0" y="0" width="1280" height="80" fill="#1E3A5F"/>
+  
+  <!-- Title -->
+  <text x="60" y="52" font-family="Microsoft YaHei" font-size="32" font-weight="bold" fill="#FFFFFF">M/M/c 模型</text>
+  
+  <!-- Page indicator -->
+  <text x="1220" y="52" font-family="Microsoft YaHei" font-size="18" fill="#FFFFFF" text-anchor="end">5 / 10</text>
+  
+  <!-- Left section: System Characteristics -->
+  <rect x="40" y="110" width="580" height="280" rx="8" fill="#F8FAFC" stroke="#4A90A4" stroke-width="2"/>
+  
+  <text x="60" y="145" font-family="Microsoft YaHei" font-size="22" font-weight="bold" fill="#1E3A5F">系统特征</text>
+  
+  <line x1="60" y1="160" x2="600" y2="160" stroke="#4A90A4" stroke-width="1"/>
+  
+  <use data-icon="users" x="60" y="180" width="24" height="24" fill="#E67E22"/>
+  <text x="95" y="200" font-family="Microsoft YaHei" font-size="20" fill="#333333">顾客到达：泊松过程，强度 λ</text>
+  
+  <use data-icon="clock" x="60" y="220" width="24" height="24" fill="#E67E22"/>
+  <text x="95" y="240" font-family="Microsoft YaHei" font-size="20" fill="#333333">服务时间：指数分布，服务率 μ</text>
+  
+  <use data-icon="server" x="60" y="260" width="24" height="24" fill="#E67E22"/>
+  <text x="95" y="280" font-family="Microsoft YaHei" font-size="20" fill="#333333">服务台：c 个相同并行服务台</text>
+  
+  <use data-icon="settings" x="60" y="300" width="24" height="24" fill="#E67E22"/>
+  <text x="95" y="320" font-family="Microsoft YaHei" font-size="20" fill="#333333">排队规则：FIFO（先来先服务）</text>
+  
+  <!-- Stability Condition Box -->
+  <rect x="60" y="340" width="540" height="40" rx="6" fill="#1E3A5F"/>
+  <text x="330" y="367" font-family="Microsoft YaHei" font-size="20" fill="#FFFFFF" text-anchor="middle">稳定条件：ρ = λ/(cμ) &lt; 1</text>
+  
+  <!-- Right section: Performance Indicators -->
+  <rect x="660" y="110" width="580" height="280" rx="8" fill="#F8FAFC" stroke="#4A90A4" stroke-width="2"/>
+  
+  <text x="680" y="145" font-family="Microsoft YaHei" font-size="22" font-weight="bold" fill="#1E3A5F">性能指标</text>
+  
+  <line x1="680" y1="160" x2="1220" y2="160" stroke="#4A90A4" stroke-width="1"/>
+  
+  <text x="680" y="195" font-family="Microsoft YaHei" font-size="20" fill="#333333">• 系统空闲概率：P₀</text>
+  
+  <text x="680" y="235" font-family="Microsoft YaHei" font-size="20" fill="#333333">• 平均队列长度：Lq</text>
+  
+  <text x="680" y="275" font-family="Microsoft YaHei" font-size="20" fill="#333333">• 平均等待时间：Wq</text>
+  
+  <text x="680" y="315" font-family="Microsoft YaHei" font-size="20" fill="#333333">• 系统平均人数：L</text>
+  
+  <text x="680" y="355" font-family="Microsoft YaHei" font-size="20" fill="#333333">• 平均逗留时间：W</text>
+  
+  <!-- Little's Law Section -->
+  <rect x="40" y="410" width="1200" height="100" rx="8" fill="#1E3A5F"/>
+  
+  <text x="640" y="450" font-family="Microsoft YaHei" font-size="24" font-weight="bold" fill="#FFFFFF" text-anchor="middle">Little 定律</text>
+  
+  <text x="640" y="490" font-family="Microsoft YaHei" font-size="22" fill="#FFFFFF" text-anchor="middle">L = λW, Lq = λWq</text>
+  
+  <!-- Application Scenarios -->
+  <rect x="40" y="530" width="1200" height="160" rx="8" fill="#F8FAFC" stroke="#E67E22" stroke-width="2"/>
+  
+  <text x="60" y="565" font-family="Microsoft YaHei" font-size="22" font-weight="bold" fill="#1E3A5F">应用场景</text>
+  
+  <line x1="60" y1="580" x2="1220" y2="580" stroke="#E67E22" stroke-width="1"/>
+  
+  <!-- Scenario boxes -->
+  <rect x="60" y="600" width="270" height="70" rx="6" fill="#4A90A4"/>
+  <text x="195" y="642" font-family="Microsoft YaHei" font-size="18" fill="#FFFFFF" text-anchor="middle">银行多柜台服务</text>
+  
+  <rect x="350" y="600" width="270" height="70" rx="6" fill="#4A90A4"/>
+  <text x="485" y="642" font-family="Microsoft YaHei" font-size="18" fill="#FFFFFF" text-anchor="middle">医院多医生窗口</text>
+  
+  <rect x="640" y="600" width="270" height="70" rx="6" fill="#4A90A4"/>
+  <text x="775" y="642" font-family="Microsoft YaHei" font-size="18" fill="#FFFFFF" text-anchor="middle">多服务器云计算</text>
+  
+  <rect x="930" y="600" width="270" height="70" rx="6" fill="#4A90A4"/>
+  <text x="1065" y="642" font-family="Microsoft YaHei" font-size="18" fill="#FFFFFF" text-anchor="middle">呼叫中心服务台</text>
+  
+</svg>

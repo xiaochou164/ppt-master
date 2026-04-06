@@ -1,0 +1,89 @@
+<svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1280" height="720" fill="#FFFFFF"/>
+  
+  <!-- Header bar -->
+  <rect x="0" y="0" width="1280" height="80" fill="#1E3A5F"/>
+  
+  <!-- Page title -->
+  <text x="60" y="52" font-family="Microsoft YaHei" font-size="32" font-weight="bold" fill="#FFFFFF">Kendall 记号</text>
+  
+  <!-- Accent line -->
+  <rect x="60" y="100" width="80" height="4" fill="#E67E22"/>
+  
+  <!-- Main formula box -->
+  <rect x="60" y="130" width="1160" height="100" rx="8" fill="#F8F9FA" stroke="#4A90A4" stroke-width="2"/>
+  
+  <!-- Formula title -->
+  <text x="100" y="165" font-family="Microsoft YaHei" font-size="20" fill="#1E3A5F">排队模型标准表示法：</text>
+  
+  <!-- Formula -->
+  <text x="100" y="205" font-family="Georgia" font-size="36" font-weight="bold" fill="#1E3A5F">A / B / c</text>
+  
+  <!-- Formula explanation -->
+  <text x="320" y="205" font-family="Microsoft YaHei" font-size="24" fill="#4A90A4">（到达间隔分布 / 服务时间分布 / 服务台数量）</text>
+  
+  <!-- Left column: Symbol meanings -->
+  <rect x="60" y="260" width="540" height="280" rx="8" fill="#FFFFFF" stroke="#E0E0E0" stroke-width="1"/>
+  
+  <!-- Column header -->
+  <rect x="60" y="260" width="540" height="45" rx="8" fill="#1E3A5F"/>
+  <rect x="60" y="285" width="540" height="20" fill="#1E3A5F"/>
+  <text x="80" y="292" font-family="Microsoft YaHei" font-size="22" font-weight="bold" fill="#FFFFFF">符号含义</text>
+  
+  <!-- Symbol items -->
+  <text x="100" y="350" font-family="Georgia" font-size="28" font-weight="bold" fill="#E67E22">A</text>
+  <text x="140" y="350" font-family="Microsoft YaHei" font-size="24" fill="#333333">：到达间隔分布</text>
+  
+  <text x="100" y="400" font-family="Georgia" font-size="28" font-weight="bold" fill="#E67E22">B</text>
+  <text x="140" y="400" font-family="Microsoft YaHei" font-size="24" fill="#333333">：服务时间分布</text>
+  
+  <text x="100" y="450" font-family="Georgia" font-size="28" font-weight="bold" fill="#E67E22">c</text>
+  <text x="140" y="450" font-family="Microsoft YaHei" font-size="24" fill="#333333">：服务台数量</text>
+  
+  <!-- Right column: Common symbols -->
+  <rect x="620" y="260" width="600" height="280" rx="8" fill="#FFFFFF" stroke="#E0E0E0" stroke-width="1"/>
+  
+  <!-- Column header -->
+  <rect x="620" y="260" width="600" height="45" rx="8" fill="#4A90A4"/>
+  <rect x="620" y="285" width="600" height="20" fill="#4A90A4"/>
+  <text x="640" y="292" font-family="Microsoft YaHei" font-size="22" font-weight="bold" fill="#FFFFFF">常见分布符号</text>
+  
+  <!-- Symbol definitions -->
+  <text x="660" y="350" font-family="Georgia" font-size="26" font-weight="bold" fill="#1E3A5F">M</text>
+  <text x="700" y="350" font-family="Microsoft YaHei" font-size="22" fill="#333333">：Markov（指数分布）</text>
+  
+  <text x="660" y="400" font-family="Georgia" font-size="26" font-weight="bold" fill="#1E3A5F">D</text>
+  <text x="700" y="400" font-family="Microsoft YaHei" font-size="22" fill="#333333">：Deterministic（确定型）</text>
+  
+  <text x="660" y="450" font-family="Georgia" font-size="26" font-weight="bold" fill="#1E3A5F">G</text>
+  <text x="700" y="450" font-family="Microsoft YaHei" font-size="22" fill="#333333">：General（一般分布）</text>
+  
+  <!-- Example models section -->
+  <rect x="60" y="560" width="1160" height="130" rx="8" fill="#F8F9FA" stroke="#4A90A4" stroke-width="1"/>
+  
+  <!-- Section header -->
+  <text x="100" y="600" font-family="Microsoft YaHei" font-size="22" font-weight="bold" fill="#1E3A5F">典型模型示例</text>
+  
+  <!-- Example 1 -->
+  <rect x="100" y="620" width="320" height="50" rx="6" fill="#1E3A5F"/>
+  <text x="120" y="652" font-family="Georgia" font-size="22" font-weight="bold" fill="#FFFFFF">M/M/1</text>
+  <text x="200" y="652" font-family="Microsoft YaHei" font-size="18" fill="#FFFFFF">泊松到达、指数服务、单服务台</text>
+  
+  <!-- Example 2 -->
+  <rect x="440" y="620" width="340" height="50" rx="6" fill="#4A90A4"/>
+  <text x="460" y="652" font-family="Georgia" font-size="22" font-weight="bold" fill="#FFFFFF">M/M/c</text>
+  <text x="545" y="652" font-family="Microsoft YaHei" font-size="18" fill="#FFFFFF">泊松到达、指数服务、c个服务台</text>
+  
+  <!-- Example 3 -->
+  <rect x="800" y="620" width="380" height="50" rx="6" fill="#E67E22"/>
+  <text x="820" y="652" font-family="Georgia" font-size="22" font-weight="bold" fill="#FFFFFF">M/G/1</text>
+  <text x="905" y="652" font-family="Microsoft YaHei" font-size="18" fill="#FFFFFF">泊松到达、一般服务时间、单服务台</text>
+  
+  <!-- Page number -->
+  <text x="1220" y="700" font-family="Microsoft YaHei" font-size="16" fill="#999999" text-anchor="end">4 / 10</text>
+  
+  <!-- Decorative element -->
+  <circle cx="1240" cy="40" r="25" fill="#E67E22" fill-opacity="0.3"/>
+  <circle cx="1240" cy="40" r="15" fill="#E67E22" fill-opacity="0.5"/>
+</svg>

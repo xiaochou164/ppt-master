@@ -254,6 +254,7 @@ Notes:
 - members of `AUTHENTIK_ADMIN_GROUPS` are auto-mapped to the local `admin` role
 - `AUTHENTIK_SYNC_MODE` supports `strict` (force overwrite), `if_present` (only update when groups are returned), `disabled` (no auto sync)
 - if `AUTH_ENABLED=true` but the config is incomplete, the login page now shows the missing items directly
+- in local mode (`AUTH_ENABLED=false`), you can bootstrap an admin via `PPT_MASTER_LOCAL_ADMIN_EMAIL/PASSWORD`
 
 The console supports:
 

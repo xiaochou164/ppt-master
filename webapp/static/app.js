@@ -1,45 +1,45 @@
 const FLOW_STEPS = [
   {
     id: "project",
-    kicker: "Step 1",
+    kicker: "第 1 步",
     title: "创建项目",
-    description: "新建项目，选择画布格式。",
+    description: "先建一个演示文稿项目，并选好页面比例。",
   },
   {
     id: "sources",
-    kicker: "Step 2",
-    title: "导入来源",
-    description: "导入文件或粘贴内容。",
+    kicker: "第 2 步",
+    title: "添加内容",
+    description: "上传资料，或直接粘贴你要整理的内容。",
   },
   {
     id: "template",
-    kicker: "Step 3",
-    title: "模板决策",
-    description: "选择模板或自由设计。",
+    kicker: "第 3 步",
+    title: "选择外观",
+    description: "挑一个模板，或让系统自由生成版式。",
   },
   {
     id: "strategist",
-    kicker: "Step 4",
-    title: "设计规范",
-    description: "确认画布、页数、风格、配色等。",
+    kicker: "第 4 步",
+    title: "确认方案",
+    description: "确认页数、风格、配色和图片需求。",
   },
   {
     id: "images",
-    kicker: "Step 5",
-    title: "AI 配图",
-    description: "可选，生成配图。",
+    kicker: "第 5 步",
+    title: "补充图片",
+    description: "按需生成插图，这一步可以跳过。",
   },
   {
     id: "executor",
-    kicker: "Step 6",
-    title: "生成页面",
-    description: "生成 SVG 页面和讲稿。",
+    kicker: "第 6 步",
+    title: "生成内容",
+    description: "生成页面内容，并补齐讲稿备注。",
   },
   {
     id: "post",
-    kicker: "Step 7",
-    title: "导出",
-    description: "拆分备注、规范化、导出 PPTX。",
+    kicker: "第 7 步",
+    title: "导出 PPT",
+    description: "整理最终文件，并导出可编辑的 PPT。",
   },
 ];
 
@@ -49,11 +49,11 @@ const PIPELINE_GUIDE = {
     command: "python3 skills/ppt-master/scripts/total_md_split.py <project_path>",
   },
   "finalize-svg": {
-    description: "规范化 SVG 写入 svg_final/。",
+    description: "整理最终页面文件，供导出使用。",
     command: "python3 skills/ppt-master/scripts/finalize_svg.py <project_path>",
   },
   "export-pptx": {
-    description: "导出 PPTX 文件。",
+    description: "导出可编辑的 PPT 文件。",
     command: "python3 skills/ppt-master/scripts/svg_to_pptx.py <project_path> -s final",
   },
 };
@@ -90,6 +90,7 @@ const state = {
     userQuery: "",
     roleFilter: "",
     statusFilter: "",
+    providerFilter: "",
     page: 1,
     pageSize: 20,
     totalUsers: 0,
@@ -109,6 +110,7 @@ const state = {
   projectFilter: "",
   activeStepId: "project",
   validation: null,
+  activityLogs: [],
   modelConfig: createEmptyModelConfig(),
   modal: {
     draft: createDraft(),
@@ -127,6 +129,9 @@ const state = {
   selectedTemplateId: null,
   templatesLoading: false,
   templateApplyLoading: false,
+  latestAction: "",
+  latestDetail: "",
+  latestTime: "",
   // Strategist state
   strategistAnalysis: null,
   strategistLoading: false,
@@ -227,12 +232,19 @@ const state = {
 };
 
 const elements = {
+  heroStatusPill: document.getElementById("heroStatusPill"),
+  heroTitle: document.getElementById("heroTitle"),
+  heroText: document.getElementById("heroText"),
+  heroProgress: document.getElementById("heroProgress"),
+  heroProgressBar: document.getElementById("heroProgressBar"),
+  heroProgressText: document.getElementById("heroProgressText"),
   projectCount: document.getElementById("projectCount"),
   formatCount: document.getElementById("formatCount"),
   stepCount: document.getElementById("stepCount"),
   openModelConfigButton: document.getElementById("openModelConfigButton"),
   closeModelConfigButton: document.getElementById("closeModelConfigButton"),
   clearLogButton: document.getElementById("clearLogButton"),
+  jumpToLatestLogButton: document.getElementById("jumpToLatestLogButton"),
   modelConfigModal: document.getElementById("modelConfigModal"),
   modelConfigBackdrop: document.getElementById("modelConfigBackdrop"),
   modelConfigForm: document.getElementById("modelConfigForm"),
@@ -304,16 +316,29 @@ const elements = {
   imageTestOutput: document.getElementById("imageTestOutput"),
   copyFromGlobalConfigButton: document.getElementById("copyFromGlobalConfigButton"),
   userBadge: document.getElementById("userBadge"),
+  openAccountSettingsButton: document.getElementById("openAccountSettingsButton"),
+  accountSettingsModal: document.getElementById("accountSettingsModal"),
+  accountSettingsBackdrop: document.getElementById("accountSettingsBackdrop"),
+  closeAccountSettingsButton: document.getElementById("closeAccountSettingsButton"),
+  accountSettingsForm: document.getElementById("accountSettingsForm"),
+  accountSummaryName: document.getElementById("accountSummaryName"),
+  accountSummaryMeta: document.getElementById("accountSummaryMeta"),
+  accountSummaryBadge: document.getElementById("accountSummaryBadge"),
+  accountDisplayNameInput: document.getElementById("accountDisplayNameInput"),
+  accountEmailInput: document.getElementById("accountEmailInput"),
+  accountPasswordFields: document.getElementById("accountPasswordFields"),
+  accountCurrentPasswordInput: document.getElementById("accountCurrentPasswordInput"),
+  accountNewPasswordInput: document.getElementById("accountNewPasswordInput"),
+  accountProviderHint: document.getElementById("accountProviderHint"),
   logoutButton: document.getElementById("logoutButton"),
   openAdminPanelButton: document.getElementById("openAdminPanelButton"),
-  adminPanelModal: document.getElementById("adminPanelModal"),
-  adminPanelBackdrop: document.getElementById("adminPanelBackdrop"),
-  closeAdminPanelButton: document.getElementById("closeAdminPanelButton"),
   adminUsersList: document.getElementById("adminUsersList"),
   adminAuditLog: document.getElementById("adminAuditLog"),
   adminUserSearchInput: document.getElementById("adminUserSearchInput"),
+  adminUsersSummary: document.getElementById("adminUsersSummary"),
   adminRoleFilter: document.getElementById("adminRoleFilter"),
   adminStatusFilter: document.getElementById("adminStatusFilter"),
+  adminProviderFilter: document.getElementById("adminProviderFilter"),
   adminPrevPage: document.getElementById("adminPrevPage"),
   adminNextPage: document.getElementById("adminNextPage"),
   adminPageIndicator: document.getElementById("adminPageIndicator"),
@@ -331,6 +356,14 @@ const elements = {
   adminAuditPrevPage: document.getElementById("adminAuditPrevPage"),
   adminAuditNextPage: document.getElementById("adminAuditNextPage"),
   adminAuditPageIndicator: document.getElementById("adminAuditPageIndicator"),
+  adminOverviewUsers: document.getElementById("adminOverviewUsers"),
+  adminOverviewLogs: document.getElementById("adminOverviewLogs"),
+  adminOverviewSelected: document.getElementById("adminOverviewSelected"),
+  adminCreateUserForm: document.getElementById("adminCreateUserForm"),
+  adminCreateEmail: document.getElementById("adminCreateEmail"),
+  adminCreateDisplayName: document.getElementById("adminCreateDisplayName"),
+  adminCreatePassword: document.getElementById("adminCreatePassword"),
+  adminCreateRole: document.getElementById("adminCreateRole"),
   // Template manager elements
   openTemplateManagerButton: document.getElementById("openTemplateManagerButton"),
   closeTemplateManagerButton: document.getElementById("closeTemplateManagerButton"),
@@ -342,6 +375,38 @@ const elements = {
   tmTemplateDetail: document.getElementById("tmTemplateDetail"),
   tmShowUploadButton: document.getElementById("tmShowUploadButton"),
 };
+
+const isAdminPage = document.body?.dataset.page === "admin";
+const DEFAULT_HERO_TITLE = "PPT Master Web";
+const DEFAULT_HERO_TEXT = "把项目上下文、关键步骤和导出状态收拢到一个清晰的工作台里，减少跳转和流程迷失。";
+
+function normalizeErrorMessage(message, path = "") {
+  const text = String(message || "").trim();
+  if (!text) return "操作失败，请稍后重试。";
+  const lower = text.toLowerCase();
+  if (lower.includes("failed to fetch") || lower.includes("networkerror")) {
+    return "网络连接失败，请检查服务是否可用后重试。";
+  }
+  if (lower.includes("another task is already running")) {
+    return "当前项目还有任务在运行，请稍后再试。";
+  }
+  if (lower.includes("project not found")) {
+    return "没有找到对应项目，列表可能已经发生变化。";
+  }
+  if (lower.includes("current password is incorrect") || lower.includes("invalid_password")) {
+    return "当前密码不正确，请重新输入。";
+  }
+  if (lower.includes("only local users can reset passwords here")) {
+    return "这个账号来自统一登录，密码需要到对应身份系统中修改。";
+  }
+  if (lower.includes("not authenticated")) {
+    return "登录状态已失效，请重新登录。";
+  }
+  if (path.includes("/api/") && lower.startsWith("request failed")) {
+    return "请求没有成功完成，请稍后再试。";
+  }
+  return text;
+}
 
 async function apiFetch(path, options = {}) {
   const response = await fetch(path, {
@@ -363,9 +428,9 @@ async function apiFetch(path, options = {}) {
       || data.detail
       || data.stderr
       || data.stdout
-      || (data.returncode ? `Command failed with exit code ${data.returncode}` : "")
-      || `Request failed: ${response.status}`;
-    const error = new Error(detail);
+      || (data.returncode ? `命令执行失败，退出码 ${data.returncode}` : "")
+      || `请求失败：${response.status}`;
+    const error = new Error(normalizeErrorMessage(detail, path));
     error.status = response.status;
     error.path = path;
     error.payload = data;
@@ -419,11 +484,137 @@ function clearFlash() {
   elements.flash.innerHTML = "";
 }
 
+function classifyLogTone(title, payload) {
+  const text = `${title || ""} ${payload || ""}`.toLowerCase();
+  if (/(失败|error|错误|denied|invalid)/.test(text)) return "error";
+  if (/(警告|warn|阻塞|未完成|等待|需处理)/.test(text)) return "warn";
+  if (/(完成|成功|saved|导出|已生成|已更新)/.test(text)) return "success";
+  return "info";
+}
+
+function renderLogOutput() {
+  if (!elements.logOutput) return;
+  if (!state.activityLogs.length) {
+    elements.logOutput.innerHTML = `
+      <div class="log-entry log-entry-empty">
+        <strong>等待操作…</strong>
+        <span class="helper">新的运行记录会显示在这里。</span>
+      </div>
+    `;
+    elements.jumpToLatestLogButton?.classList.add("hidden");
+    return;
+  }
+  elements.logOutput.innerHTML = state.activityLogs.map((entry) => `
+    <article class="log-entry log-entry-${entry.tone}">
+      <div class="log-entry-top">
+        <strong>${escapeHtml(entry.title)}</strong>
+        <span class="log-entry-time">${escapeHtml(entry.stamp)}</span>
+      </div>
+      ${entry.detail ? `<p class="log-entry-detail" title="${escapeHtml(entry.detail)}">${escapeHtml(entry.detail)}</p>` : ""}
+    </article>
+  `).join("");
+}
+
+function updateLatestLogButton() {
+  if (!elements.logOutput || !elements.jumpToLatestLogButton) return;
+  const shouldShow = elements.logOutput.scrollTop > 24 && state.activityLogs.length > 0;
+  elements.jumpToLatestLogButton.classList.toggle("hidden", !shouldShow);
+}
+
 function appendLog(title, payload) {
   const stamp = new Date().toLocaleTimeString("zh-CN", { hour12: false });
-  const short = String(payload || "").split("\n")[0].trim().slice(0, 120);
-  const line = short ? `[${stamp}] ${title} — ${short}` : `[${stamp}] ${title}`;
-  elements.logOutput.textContent = `${line}\n${elements.logOutput.textContent}`.trim();
+  const short = String(payload || "").split("\n")[0].trim().slice(0, 160);
+  state.activityLogs.unshift({
+    stamp,
+    title: String(title || "").trim(),
+    detail: short,
+    tone: classifyLogTone(title, short),
+  });
+  state.activityLogs = state.activityLogs.slice(0, 200);
+  renderLogOutput();
+  if (elements.logOutput) {
+    elements.logOutput.scrollTop = 0;
+  }
+  updateLatestLogButton();
+  renderHeroStatus({ latestAction: title, latestDetail: short, latestTime: stamp });
+}
+
+function getHeroStatusMeta(project) {
+  if (!project) {
+    return { label: "待开始", tone: "idle" };
+  }
+  const health = getProjectHealth(project);
+  if (project.pptx_files?.length) {
+    return { label: "已交付", tone: "done" };
+  }
+  if (health.blockerCount > 0) {
+    return { label: "待处理", tone: "warn" };
+  }
+  if (project.svg_final_count > 0 || project.svg_output_count > 0) {
+    return { label: "生成中", tone: "active" };
+  }
+  if (hasDesignSpec(project)) {
+    return { label: "已规划", tone: "ready" };
+  }
+  return { label: "进行中", tone: "idle" };
+}
+
+function renderHeroStatus(overrides = {}) {
+  if (!elements.heroText || !elements.heroTitle || isAdminPage) {
+    return;
+  }
+
+  const project = state.selectedProject;
+  const statusMeta = getHeroStatusMeta(project);
+  const activeStep = FLOW_STEPS.find((step) => step.id === state.activeStepId);
+  const latestAction = overrides.latestAction || state.latestAction || "";
+  const latestDetail = overrides.latestDetail || state.latestDetail || "";
+  const latestTime = overrides.latestTime || state.latestTime || "";
+
+  if (overrides.latestAction !== undefined) state.latestAction = overrides.latestAction;
+  if (overrides.latestDetail !== undefined) state.latestDetail = overrides.latestDetail;
+  if (overrides.latestTime !== undefined) state.latestTime = overrides.latestTime;
+
+  if (elements.heroStatusPill) {
+    elements.heroStatusPill.textContent = statusMeta.label;
+    elements.heroStatusPill.dataset.tone = statusMeta.tone;
+    elements.heroStatusPill.classList.remove("hidden");
+  }
+  if (elements.heroProgress && elements.heroProgressBar && elements.heroProgressText) {
+    if (!project) {
+      elements.heroProgress.classList.add("hidden");
+    } else {
+      const health = getProjectHealth(project);
+      elements.heroProgress.classList.remove("hidden");
+      elements.heroProgressBar.style.width = `${health.percent}%`;
+      elements.heroProgressText.textContent = `${health.completed}/${health.total} · ${health.percent}%`;
+    }
+  }
+
+  if (!project) {
+    elements.heroTitle.textContent = DEFAULT_HERO_TITLE;
+    elements.heroTitle.title = DEFAULT_HERO_TITLE;
+    elements.heroText.textContent = latestAction
+      ? `${latestTime ? `[${latestTime}] ` : ""}${truncateText(latestAction, 36)}${latestDetail ? `：${truncateText(latestDetail, 84)}` : ""}`
+      : DEFAULT_HERO_TEXT;
+    elements.heroText.title = elements.heroText.textContent;
+    return;
+  }
+
+  const stepLabel = activeStep?.label || "进行中";
+  const heroGuidance = truncateText(getHeroGuidance(project), 72);
+  const heroAction = truncateText(latestAction, 32);
+  const heroDetail = truncateText(latestDetail, 72);
+  elements.heroTitle.textContent = project.name;
+  elements.heroTitle.title = project.name;
+  if (latestAction) {
+    elements.heroText.textContent = `${stepLabel} · ${heroGuidance} · ${heroAction}${heroDetail ? `：${heroDetail}` : ""}`;
+  } else {
+    elements.heroText.textContent = `${stepLabel} · ${heroGuidance}`;
+  }
+  elements.heroText.title = latestAction
+    ? `${stepLabel} · ${getHeroGuidance(project)} · ${latestAction}${latestDetail ? `：${latestDetail}` : ""}`
+    : `${stepLabel} · ${getHeroGuidance(project)}`;
 }
 
 function escapeHtml(value) {
@@ -433,6 +624,13 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function truncateText(value, maxLength = 120) {
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, Math.max(0, maxLength - 1)).trimEnd()}…`;
 }
 
 // ============ Focus Trap ============
@@ -529,6 +727,62 @@ function validateField(input, rules = {}) {
   return true;
 }
 
+function setupPasswordToggles(root = document) {
+  root.querySelectorAll("[data-password-toggle]").forEach((button) => {
+    if (button.dataset.passwordToggleBound === "true") return;
+    button.dataset.passwordToggleBound = "true";
+    button.addEventListener("click", () => {
+      const wrap = button.closest(".password-input-wrap, .admin-inline-password");
+      const input = wrap?.querySelector('input[type="password"], input[type="text"]');
+      if (!input) return;
+      const nextType = input.type === "password" ? "text" : "password";
+      input.type = nextType;
+      if (nextType === "text") {
+        input.dataset.passwordText = "true";
+      } else {
+        delete input.dataset.passwordText;
+      }
+      button.textContent = nextType === "password" ? "显示" : "隐藏";
+      button.setAttribute("aria-label", nextType === "password" ? "显示密码" : "隐藏密码");
+    });
+  });
+}
+
+function setupInlineValidation(root = document) {
+  const emailInputs = root.querySelectorAll('input[type="email"]');
+  emailInputs.forEach((input) => {
+    if (input.dataset.validationBound === "true") return;
+    input.dataset.validationBound = "true";
+    const rules = {
+      required: input.required,
+      requiredMsg: "请输入邮箱地址",
+      pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+      patternMsg: "请输入有效的邮箱地址",
+    };
+    input.addEventListener("blur", () => validateField(input, rules));
+    input.addEventListener("input", () => {
+      if (input.classList.contains("field-invalid")) validateField(input, rules);
+    });
+  });
+
+  const passwordInputs = root.querySelectorAll('input[type="password"][minlength], input[type="text"][minlength][data-password-text]');
+  passwordInputs.forEach((input) => {
+    if (input.dataset.passwordValidationBound === "true") return;
+    input.dataset.passwordValidationBound = "true";
+    const minLength = Number(input.getAttribute("minlength") || "0");
+    const rules = {
+      required: input.required,
+      requiredMsg: "请输入密码",
+      minLength,
+      minLengthMsg: minLength > 0 ? `至少需要 ${minLength} 位` : "格式不正确",
+    };
+    input.addEventListener("blur", () => validateField(input, rules));
+    input.addEventListener("input", () => {
+      if (input.classList.contains("field-invalid")) validateField(input, rules);
+    });
+  });
+}
+
 // ============ Next Step Guide Helper ============
 function renderNextStepGuide(currentStepId) {
   const project = state.selectedProject;
@@ -542,16 +796,29 @@ function renderNextStepGuide(currentStepId) {
   if (nextStepStatus === "locked") return "";
   return `
     <div class="next-step-guide">
-      <span class="next-step-guide-label">当前步骤已就绪</span>
+      <span class="next-step-guide-label">这一步已经完成</span>
       <button class="button button-secondary" data-next-step="${escapeHtml(nextStep.id)}">
-        继续 → ${escapeHtml(nextStep.title)}
+        前往下一步：${escapeHtml(nextStep.title)}
       </button>
     </div>
   `;
 }
 
 function metric(label, value, strong = false) {
-  return `<span class="badge ${strong ? "badge-strong" : ""}">${escapeHtml(label)}: ${escapeHtml(String(value))}</span>`;
+  const labelMap = {
+    format: "画布",
+    src: "来源",
+    spec: "方案",
+    svg: "页面",
+    notes: "讲稿",
+    final: "最终页面",
+    pptx: "PPT",
+    sources: "来源",
+    svg_output: "页面",
+    svg_final: "最终页面",
+  };
+  const displayLabel = labelMap[label] || label;
+  return `<span class="badge ${strong ? "badge-strong" : ""}">${escapeHtml(displayLabel)}：${escapeHtml(String(value))}</span>`;
 }
 
 function getProjectRef(project) {
@@ -631,40 +898,40 @@ function buildAiStagePrompt(project, objectiveLines = []) {
 
 function getProjectStepState(project, stepId) {
   if (!project) {
-    return { disabled: true, reason: "需要先选择项目" };
+    return { disabled: true, reason: "请先选择一个项目" };
   }
 
   if (stepId === "split-notes") {
     if (project.svg_output_count === 0) {
-      return { disabled: true, reason: "需要先在 svg_output/ 中生成 SVG 文件" };
+      return { disabled: true, reason: "需要先生成页面内容" };
     }
     if (!project.has_total_notes) {
-      return { disabled: true, reason: "需要先提供 notes/total.md" };
+      return { disabled: true, reason: "需要先生成讲稿总表" };
     }
-    return { disabled: false, reason: "可执行" };
+    return { disabled: false, reason: "可以开始" };
   }
 
   if (stepId === "finalize-svg") {
     if (project.svg_output_count === 0) {
-      return { disabled: true, reason: "需要先在 svg_output/ 中生成 SVG 文件" };
+      return { disabled: true, reason: "需要先生成页面内容" };
     }
     if ((project.split_notes_count || 0) === 0) {
-      return { disabled: true, reason: "需要先执行 Split Notes 生成逐页 notes/*.md" };
+      return { disabled: true, reason: "需要先整理出逐页讲稿备注" };
     }
-    return { disabled: false, reason: "可执行" };
+    return { disabled: false, reason: "可以开始" };
   }
 
   if (stepId === "export-pptx") {
     if ((project.split_notes_count || 0) === 0) {
-      return { disabled: true, reason: "需要先执行 Split Notes 生成逐页 notes/*.md" };
+      return { disabled: true, reason: "需要先整理出逐页讲稿备注" };
     }
     if (project.svg_final_count === 0) {
-      return { disabled: true, reason: "需要先执行 Finalize SVG 生成 svg_final/" };
+      return { disabled: true, reason: "需要先整理好最终页面文件" };
     }
-    return { disabled: false, reason: "可执行" };
+    return { disabled: false, reason: "可以开始" };
   }
 
-  return { disabled: false, reason: "可执行" };
+  return { disabled: false, reason: "可以开始" };
 }
 
 function getRecommendedStepId(project) {
@@ -691,36 +958,36 @@ function getRecommendedStepId(project) {
 
 function getNextActionLabel(project) {
   if (!project) {
-    return "选择或创建项目";
+    return "选择一个项目，或先创建一个新项目";
   }
   if (project.source_count === 0) {
-    return "导入来源内容";
+    return "添加要整理的内容";
   }
   if (!hasTemplateDecision(project)) {
-    return "确认模板策略：使用模板或自由设计";
+    return "选择页面外观，或改为自由排版";
   }
   if (!hasDesignSpec(project)) {
-    return "完成八项确认并生成 design_spec.md";
+    return "确认页数、风格、配色和图片需求";
   }
   if (project.svg_output_count === 0) {
-    return "继续 Executor 生成 svg_output/*.svg";
+    return "开始生成页面内容";
   }
   if (!project.has_total_notes) {
     if (!state.modelConfig?.configured) {
-      return "先配置大模型 profile，再生成 total.md";
+      return "先连接文字模型，再生成讲稿备注";
     }
-    return "生成 notes/total.md";
+    return "生成讲稿备注";
   }
   if ((project.split_notes_count || 0) === 0) {
-    return "运行 Split Notes";
+    return "整理每一页的讲稿备注";
   }
   if (project.svg_final_count === 0) {
-    return "运行 Finalize SVG";
+    return "整理最终页面文件";
   }
   if (project.pptx_files.length === 0) {
-    return "运行 Export PPTX";
+    return "导出可编辑的 PPT";
   }
-  return "预览与导出";
+  return "预览并下载结果";
 }
 
 function modelConfigStatus() {
@@ -745,43 +1012,43 @@ function getCompletedFlowCount(project) {
 
 function getProjectBlockers(project) {
   if (!project) {
-    return ["先选择一个项目。"];
+    return ["请先选择一个项目。"];
   }
 
   const blockers = [];
   if (project.source_count === 0) {
-    blockers.push("还没有导入任何来源内容。");
+    blockers.push("还没有添加任何内容。");
     return blockers;
   }
   if (!hasTemplateDecision(project)) {
-    blockers.push("还没有完成模板决策。先在主流程里确认使用模板还是自由设计。");
+    blockers.push("还没有确认页面外观。先选择模板，或改为自由排版。");
     return blockers;
   }
   if (!hasDesignSpec(project)) {
-    blockers.push("还没有 design_spec.md。需要先完成 Strategist 的八项确认和设计规范输出。");
+    blockers.push("还没有完成方案确认。请先确认页数、风格、配色和图片需求。");
     return blockers;
   }
   if (project.svg_output_count === 0) {
-    blockers.push("当前还停留在页面生成阶段。需要继续 Executor，生成 svg_output/*.svg。");
+    blockers.push("页面内容还没有生成。请先开始生成页面。");
     return blockers;
   }
   if (!project.has_total_notes) {
-    blockers.push("还缺少 notes/total.md，Split Notes 还不能执行。");
+    blockers.push("讲稿备注还没有生成，所以还不能继续整理导出文件。");
     if (!state.modelConfig?.configured) {
-      blockers.push("如果走标准模式，还需要先配置一个可用的大模型 profile。");
+      blockers.push("如果要继续自动生成，请先连接一个可用的文字模型。");
     }
     return blockers;
   }
   if ((project.split_notes_count || 0) === 0) {
-    blockers.push("还没有逐页 notes/*.md，请先执行 Split Notes。");
+    blockers.push("还没有整理出逐页讲稿备注。");
     return blockers;
   }
   if (project.svg_final_count === 0) {
-    blockers.push("还没有 svg_final/*.svg，请执行 Finalize SVG。");
+    blockers.push("最终页面文件还没有整理完成。");
     return blockers;
   }
   if (project.pptx_files.length === 0) {
-    blockers.push("最终 SVG 已就绪，但还没有导出 PPTX。");
+    blockers.push("内容已经准备好，但还没有导出 PPT。");
   }
 
   return blockers;
@@ -801,6 +1068,17 @@ function getProjectHealth(project) {
   };
 }
 
+function getHeroGuidance(project) {
+  if (!project) {
+    return "还没有选中项目，从创建项目或打开最近项目开始。";
+  }
+  const health = getProjectHealth(project);
+  if (health.blockerCount > 0) {
+    return `阻塞项：${health.blockers[0]}`;
+  }
+  return `下一步：${health.nextStepLabel}`;
+}
+
 function getPipelineChecklist(project, stepId) {
   if (!project) {
     return [];
@@ -808,22 +1086,22 @@ function getPipelineChecklist(project, stepId) {
 
   if (stepId === "split-notes") {
     return [
-      { label: `svg_output/*.svg 已就绪 (${project.svg_output_count})`, ok: project.svg_output_count > 0 },
-      { label: `notes/total.md 已存在 (${project.has_total_notes ? "yes" : "no"})`, ok: project.has_total_notes },
+      { label: `页面内容已生成（${project.svg_output_count} 页）`, ok: project.svg_output_count > 0 },
+      { label: `讲稿总表已准备好（${project.has_total_notes ? "是" : "否"}）`, ok: project.has_total_notes },
     ];
   }
 
   if (stepId === "finalize-svg") {
     return [
-      { label: `Split Notes 已完成 (${project.split_notes_count || 0} 个逐页备注)`, ok: (project.split_notes_count || 0) > 0 },
-      { label: `svg_output/*.svg 已就绪 (${project.svg_output_count})`, ok: project.svg_output_count > 0 },
+      { label: `逐页讲稿备注已整理（${project.split_notes_count || 0} 份）`, ok: (project.split_notes_count || 0) > 0 },
+      { label: `页面内容已生成（${project.svg_output_count} 页）`, ok: project.svg_output_count > 0 },
     ];
   }
 
   if (stepId === "export-pptx") {
     return [
-      { label: `Split Notes 已完成 (${project.split_notes_count || 0} 个逐页备注)`, ok: (project.split_notes_count || 0) > 0 },
-      { label: `svg_final/*.svg 已就绪 (${project.svg_final_count})`, ok: project.svg_final_count > 0 },
+      { label: `逐页讲稿备注已整理（${project.split_notes_count || 0} 份）`, ok: (project.split_notes_count || 0) > 0 },
+      { label: `最终页面文件已准备好（${project.svg_final_count} 页）`, ok: project.svg_final_count > 0 },
     ];
   }
 
@@ -836,15 +1114,15 @@ function getPipelineOutputs(project, stepId) {
   }
 
   if (stepId === "split-notes") {
-    return [`notes/*.md: ${project.split_notes_count || 0}`];
+    return [`逐页讲稿备注：${project.split_notes_count || 0} 份`];
   }
 
   if (stepId === "finalize-svg") {
-    return [`svg_final/*.svg: ${project.svg_final_count}`];
+    return [`最终页面文件：${project.svg_final_count} 页`];
   }
 
   if (stepId === "export-pptx") {
-    return [`PPTX 文件: ${project.pptx_files.length}`];
+    return [`可编辑 PPT：${project.pptx_files.length} 份`];
   }
 
   return [];
@@ -895,25 +1173,27 @@ function renderModelConfigModal() {
   }
 
   if (elements.modalProfileSummary) {
-    elements.modalProfileSummary.textContent = activeProfile
-      ? `当前默认：${activeProfile.name} · ${activeProfile.backend} · ${activeProfile.model || "未指定模型"}`
-      : "当前还没有可用配置。";
+    const summaryText = activeProfile
+      ? `当前使用：${activeProfile.name} · ${activeProfile.backend} · ${activeProfile.model || "未指定模型"}`
+      : "当前还没有可用设置。";
+    elements.modalProfileSummary.textContent = truncateText(summaryText, 56);
+    elements.modalProfileSummary.title = summaryText;
   }
 
   if (elements.modelProfileList) {
     elements.modelProfileList.innerHTML = profiles.length === 0
       ? `
         <div class="empty-state profile-empty">
-          <strong>还没有保存的配置</strong>
-          <p class="helper">先在右侧填写 Base URL、Key 和模型，再保存成一个 profile。</p>
+          <strong>还没有保存的设置</strong>
+          <p class="helper">先在右侧填写接口地址、访问密钥和模型名称，再保存成一条可复用设置。</p>
         </div>
       `
       : profiles.map((profile) => `
         <article class="profile-item ${state.modelConfig.selected_profile_id === profile.id ? "profile-item-active" : ""}">
           <div class="profile-item-top">
             <div>
-              <h3>${escapeHtml(profile.name)}</h3>
-              <p>${escapeHtml(profile.backend)} · ${escapeHtml(profile.model || "未指定模型")}</p>
+              <h3 title="${escapeHtml(profile.name)}">${escapeHtml(profile.name)}</h3>
+              <p title="${escapeHtml(`${profile.backend} · ${profile.model || "未指定模型"}`)}">${escapeHtml(profile.backend)} · ${escapeHtml(profile.model || "未指定模型")}</p>
             </div>
             <span class="badge ${state.modelConfig.selected_profile_id === profile.id ? "badge-strong" : ""}">
               ${state.modelConfig.selected_profile_id === profile.id ? "当前" : "候选"}
@@ -942,15 +1222,15 @@ function renderModelConfigModal() {
   }
   if (elements.modalApiKeyLabel) {
     elements.modalApiKeyLabel.textContent = draft.api_key_masked
-      ? `API Key (当前：${draft.api_key_masked})`
-      : "API Key";
+      ? `访问密钥（当前：${draft.api_key_masked}）`
+      : "访问密钥";
   }
   if (elements.modalFetchedModelSelect) {
     const options = knownModels.length === 0
-      ? `<option value="">先获取模型列表</option>`
+      ? `<option value="">先获取可选模型</option>`
       : knownModels.map((modelId, index) => {
         const label = index === 0 && modelId === selectedModel && !state.modal.fetchedModels.includes(modelId)
-          ? `当前值：${modelId}`
+          ? `当前选择：${modelId}`
           : modelId;
         return `<option value="${escapeHtml(modelId)}">${escapeHtml(label)}</option>`;
       }).join("");
@@ -1023,6 +1303,60 @@ function closeModelConfigModal() {
   unlockBackgroundScroll();
 }
 
+function renderAccountSettingsModal() {
+  if (!state.user) {
+    return;
+  }
+  if (elements.accountSummaryName) {
+    elements.accountSummaryName.textContent = state.user.display_name || state.user.username || "-";
+  }
+  if (elements.accountSummaryMeta) {
+    elements.accountSummaryMeta.textContent = `${state.user.email} · ${state.user.username}`;
+  }
+  if (elements.accountSummaryBadge) {
+    elements.accountSummaryBadge.textContent = state.user.role === "admin" ? "管理员" : "普通用户";
+  }
+  if (elements.accountDisplayNameInput) {
+    elements.accountDisplayNameInput.value = state.user.display_name || "";
+  }
+  if (elements.accountEmailInput) {
+    elements.accountEmailInput.value = state.user.email || "";
+  }
+  const isLocalAccount = state.user.auth_provider === "local";
+  if (elements.accountPasswordFields) {
+    elements.accountPasswordFields.classList.toggle("hidden", !isLocalAccount);
+  }
+  if (elements.accountProviderHint) {
+    elements.accountProviderHint.textContent = isLocalAccount
+      ? "当前是本地账号，显示名和密码都可以在这里修改。"
+      : `当前账号来自 ${state.user.auth_provider || "外部身份系统"}，这里只能修改显示名。`;
+  }
+  if (elements.accountCurrentPasswordInput) {
+    elements.accountCurrentPasswordInput.value = "";
+  }
+  if (elements.accountNewPasswordInput) {
+    elements.accountNewPasswordInput.value = "";
+  }
+}
+
+function openAccountSettingsModal() {
+  if (!state.user) {
+    return;
+  }
+  renderAccountSettingsModal();
+  lockBackgroundScroll();
+  elements.accountSettingsModal?.classList.remove("hidden");
+  elements.accountSettingsModal?.setAttribute("aria-hidden", "false");
+  trapFocus(elements.accountSettingsModal);
+}
+
+function closeAccountSettingsModal() {
+  elements.accountSettingsModal?.classList.add("hidden");
+  elements.accountSettingsModal?.setAttribute("aria-hidden", "true");
+  releaseFocus();
+  unlockBackgroundScroll();
+}
+
 // ============ Image Model Modal Functions ============
 
 function openImageModelModal() {
@@ -1048,23 +1382,26 @@ function renderImageModelModal() {
 
   // Profile list
   if (elements.imageModalProfileSummary) {
+    let summaryText = "";
     if (profiles.length === 0) {
-      elements.imageModalProfileSummary.textContent = "当前还没有可用配置。";
+      summaryText = "当前还没有可用设置。";
     } else {
-      elements.imageModalProfileSummary.textContent = `共 ${profiles.length} 个配置，已选择: ${config.active_profile?.name || "无"}`;
+      summaryText = `共 ${profiles.length} 套设置，当前使用：${config.active_profile?.name || "无"}`;
     }
+    elements.imageModalProfileSummary.textContent = truncateText(summaryText, 56);
+    elements.imageModalProfileSummary.title = summaryText;
   }
 
   if (elements.imageModelProfileList) {
     if (profiles.length === 0) {
-      elements.imageModelProfileList.innerHTML = `<p class="helper profile-empty">点击下方按钮新增配置。</p>`;
+      elements.imageModelProfileList.innerHTML = `<p class="helper profile-empty">点击下方按钮新增设置。</p>`;
     } else {
       elements.imageModelProfileList.innerHTML = profiles.map((profile) => `
         <article class="profile-item ${selectedId === profile.id ? "profile-item-active" : ""}">
           <div class="profile-item-top">
             <div>
-              <h3>${escapeHtml(profile.name)}</h3>
-              <p>${escapeHtml(profile.backend)} · ${escapeHtml(profile.model || "默认模型")}</p>
+              <h3 title="${escapeHtml(profile.name)}">${escapeHtml(profile.name)}</h3>
+              <p title="${escapeHtml(`${profile.backend} · ${profile.model || "默认模型"}`)}">${escapeHtml(profile.backend)} · ${escapeHtml(profile.model || "默认模型")}</p>
             </div>
             <span class="badge ${selectedId === profile.id ? "badge-strong" : ""}">
               ${selectedId === profile.id ? "当前" : "候选"}
@@ -1085,7 +1422,7 @@ function renderImageModelModal() {
   if (elements.imageBackendSelect) elements.imageBackendSelect.value = draft.backend || "gemini";
   if (elements.imageApiKeyInput) elements.imageApiKeyInput.value = "";
   if (elements.imageApiKeyLabel) {
-    elements.imageApiKeyLabel.textContent = draft.api_key_masked ? `API Key (${draft.api_key_masked})` : "API Key";
+    elements.imageApiKeyLabel.textContent = draft.api_key_masked ? `访问密钥（${draft.api_key_masked}）` : "访问密钥";
   }
 
   // Update model dropdown and base URL based on backend
@@ -1195,7 +1532,7 @@ async function saveImageModelProfile(event) {
     return;
   }
   if (!profile.id && !apiKey) {
-    showFlash("新增配置需要提供 API Key", "error");
+    showFlash("新增设置时需要填写访问密钥", "error");
     return;
   }
 
@@ -1208,7 +1545,7 @@ async function saveImageModelProfile(event) {
     });
     await loadImageModelConfig();
     beginNewImageProfile();
-    showFlash("图片模型配置已保存");
+    showFlash("图片模型设置已保存。");
     renderImageModelModal();
   } catch (error) {
     showFlash(error.message, "error");
@@ -1234,6 +1571,11 @@ async function selectImageProfile(profileId) {
 
 async function deleteImageProfile(profileId) {
   if (!profileId) return;
+  const profile = state.imageModelConfig.profiles?.find((item) => item.id === profileId);
+  const profileLabel = profile?.name || "这条设置";
+  if (!window.confirm(`确认删除“${profileLabel}”吗？删除后将无法恢复。`)) {
+    return;
+  }
 
   try {
     await apiFetch("/api/image-model-config", {
@@ -1255,14 +1597,14 @@ async function testImageConfig() {
   const apiKey = elements.imageApiKeyInput?.value?.trim() || "";
 
   if (!apiKey && !state.imageModal.draft.api_key_masked) {
-    showFlash("请先输入 API Key", "error");
+    showFlash("请先输入访问密钥", "error");
     return;
   }
 
   try {
     clearFlash();
     setBusy(true);
-    state.imageModal.testOutput = "测试中...";
+    state.imageModal.testOutput = "正在测试这套设置...";
     state.imageModal.testError = false;
     renderImageModelModal();
 
@@ -1276,7 +1618,7 @@ async function testImageConfig() {
       body: JSON.stringify({ profile }),
     });
 
-    state.imageModal.testOutput = `测试成功\n后端: ${data.result?.backend || "unknown"}\n模型: ${data.result?.model || "unknown"}`;
+    state.imageModal.testOutput = `测试成功\n服务类型：${data.result?.backend || "未识别"}\n模型名称：${data.result?.model || "未识别"}`;
     state.imageModal.testError = false;
     renderImageModelModal();
   } catch (error) {
@@ -1307,14 +1649,14 @@ function handleImageProfileListClick(event) {
 function copyFromGlobalModelConfig() {
   const activeProfile = state.modelConfig.active_profile;
   if (!activeProfile) {
-    showFlash("请先在全局模型配置中设置并选择一个配置", "error");
+    showFlash("请先在全局模型设置里选好一套可用设置。", "error");
     return;
   }
 
   // Copy values from active text model profile to image model form
   state.imageModal.draft = {
     id: "",
-    name: activeProfile.name ? `${activeProfile.name} (图片)` : "全局配置复制",
+    name: activeProfile.name ? `${activeProfile.name}（图片）` : "从全局设置复制",
     backend: activeProfile.backend || "gemini",
     model: activeProfile.model || "",
     base_url: activeProfile.base_url || "",
@@ -1333,14 +1675,14 @@ function copyFromGlobalModelConfig() {
   }
   if (elements.imageApiKeyLabel) {
     elements.imageApiKeyLabel.textContent = state.imageModal.draft.api_key_masked
-      ? `API Key (${state.imageModal.draft.api_key_masked})`
-      : "API Key";
+      ? `访问密钥（${state.imageModal.draft.api_key_masked}）`
+      : "访问密钥";
   }
   if (elements.imageApiKeyInput) {
     elements.imageApiKeyInput.value = "";
   }
 
-  showFlash("已从全局配置复制，请填写 API Key 后保存");
+  showFlash("已从全局模型设置复制，请补充访问密钥后保存。");
 }
 
 function getFlowStepStatus(stepId, project, activeStepId) {
@@ -1398,8 +1740,12 @@ function renderProjectContext() {
       <div class="context-empty">
         <strong>当前还没有选中项目</strong>
         <p class="context-text">从第 1 步开始。你可以创建一个新项目，或者从最近项目列表里选一个继续操作。</p>
+        <div class="action-row">
+          <button class="button button-secondary" type="button" data-context-action="open-project-manager">打开项目管理</button>
+        </div>
       </div>
     `;
+    elements.projectContext.querySelector('[data-context-action="open-project-manager"]')?.addEventListener("click", openProjectManagerModal);
     return;
   }
 
@@ -1407,6 +1753,7 @@ function renderProjectContext() {
   const blockerItems = health.blockers.length === 0
     ? `<li>当前没有明显阻塞，可以继续往下走。</li>`
     : health.blockers.slice(0, 3).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+  const nextStepLabel = truncateText(health.nextStepLabel, 120);
 
   elements.projectContext.innerHTML = `
     <div class="context-card">
@@ -1414,12 +1761,12 @@ function renderProjectContext() {
         <div class="context-main">
           <div class="context-top">
             <div>
-              <h3 class="context-title">${escapeHtml(project.name)}</h3>
-              <p class="context-text">${escapeHtml(health.nextStepLabel)}</p>
+              <h3 class="context-title" title="${escapeHtml(project.name)}">${escapeHtml(project.name)}</h3>
+              <p class="context-text" title="${escapeHtml(health.nextStepLabel)}">${escapeHtml(nextStepLabel)}</p>
             </div>
             <div class="action-row context-actions">
-              <button class="button button-ghost button-small" data-context-action="refresh">刷新</button>
-              <button class="button button-ghost button-small" data-context-action="validate">校验</button>
+              <button class="button button-ghost button-small" data-context-action="refresh" title="刷新当前项目状态">刷新</button>
+              <button class="button button-ghost button-small" data-context-action="validate" title="校验当前项目结构">校验</button>
             </div>
           </div>
           <div class="badge-row badge-row-compact">
@@ -1476,7 +1823,7 @@ function renderStepRail() {
     const numberContent = status === "complete" ? "\u2713" : String(index + 1);
 
     return `
-      <button class="${className}" data-flow-step="${escapeHtml(step.id)}" ${canOpen ? "" : "disabled"}>
+      <button class="${className}" data-flow-step="${escapeHtml(step.id)}" title="${escapeHtml(step.description)}" aria-label="${escapeHtml(`${step.title}：${step.description}`)}" ${status === "current" ? 'aria-current="step"' : ""} ${canOpen ? "" : "disabled"}>
         <span class="step-number">${numberContent}</span>
         <p class="step-title">${escapeHtml(step.title)}</p>
         <p class="step-desc">${escapeHtml(step.description)}</p>
@@ -1519,11 +1866,11 @@ function renderRecentProjects() {
         <article class="project-item ${getProjectRef(state.selectedProject) === getProjectRef(project) ? "project-item-active" : ""}">
           <div class="project-top">
             <div>
-              <h3 class="project-name">${escapeHtml(project.name)}</h3>
-              <p class="project-meta">${escapeHtml(project.canvas_label)} · ${escapeHtml(project.created_at)}</p>
+              <h3 class="project-name" title="${escapeHtml(project.name)}">${escapeHtml(project.name)}</h3>
+              <p class="project-meta" title="${escapeHtml(`${project.canvas_label} · ${project.created_at}`)}">${escapeHtml(project.canvas_label)} · ${escapeHtml(project.created_at)}</p>
             </div>
             <div class="project-actions">
-              <button class="button button-ghost" data-project-select="${escapeHtml(getProjectRef(project))}">
+              <button class="button button-ghost" data-project-select="${escapeHtml(getProjectRef(project))}" title="${getProjectRef(state.selectedProject) === getProjectRef(project) ? escapeHtml(`当前项目：${project.name}`) : escapeHtml(`切换到项目：${project.name}`)}">
                 ${getProjectRef(state.selectedProject) === getProjectRef(project) ? "当前项目" : "切换到此项目"}
               </button>
             </div>
@@ -1551,13 +1898,13 @@ function renderProjectStep() {
     <div class="two-col">
       <section class="subpanel">
         <div class="section-head">
-          <p class="section-kicker">Create</p>
+          <p class="section-kicker">新建</p>
           <h2>新建项目</h2>
         </div>
         <form id="createProjectForm" class="stack">
           <label class="field">
             <span>项目名</span>
-            <input type="text" name="project_name" placeholder="例如：annual_report" required>
+            <input type="text" name="project_name" placeholder="例如：年度汇报" required>
           </label>
           <label class="field">
             <span>画布格式</span>
@@ -1569,7 +1916,7 @@ function renderProjectStep() {
 
       <section class="subpanel">
         <div class="section-head">
-          <p class="section-kicker">Recent</p>
+          <p class="section-kicker">最近使用</p>
           <h2>最近项目</h2>
           <p class="helper">共 ${state.projects.length} 个项目，当前显示 ${filteredProjects.length} 个。</p>
         </div>
@@ -1585,7 +1932,7 @@ function renderProjectStep() {
 
 function renderSourcesStep() {
   if (!state.selectedProject) {
-    return renderLockedStage("先完成第 1 步，选择一个项目。");
+    return renderLockedStage("请先创建或选择一个项目，然后再添加内容。");
   }
 
   const project = state.selectedProject;
@@ -1595,15 +1942,15 @@ function renderSourcesStep() {
   const existingSourcesHtml = sourceCount > 0 ? `
     <section class="subpanel">
       <div class="section-head">
-        <p class="section-kicker">Imported</p>
+        <p class="section-kicker">已导入</p>
         <h2>已导入来源 (${sourceCount})</h2>
       </div>
       <div class="pm-file-list">
         ${sourceFiles.length > 0 ? sourceFiles.map((file) => `
           <div class="pm-file-item">
-            <span class="pm-file-icon svg-icon">M</span>
-            <span class="pm-file-name">${escapeHtml(file.name)}</span>
-            <a class="button button-ghost button-small" data-doc-preview="${escapeHtml(file.url)}" data-doc-title="${escapeHtml(file.name)}" style="padding:4px 10px;font-size:0.78rem;cursor:pointer;">预览</a>
+            <span class="pm-file-icon svg-icon">文</span>
+            <span class="pm-file-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span>
+            <a class="button button-ghost button-small doc-preview-trigger" data-doc-preview="${escapeHtml(file.url)}" data-doc-title="${escapeHtml(file.name)}" title="${escapeHtml(`预览 ${file.name}`)}">预览</a>
           </div>
         `).join("") : `
           <p class="helper">${sourceCount} 个来源文件（详细列表需刷新项目数据）</p>
@@ -1616,7 +1963,7 @@ function renderSourcesStep() {
     ${existingSourcesHtml}
     <section class="subpanel">
       <div class="section-head">
-        <p class="section-kicker">Import</p>
+        <p class="section-kicker">继续导入</p>
         <h2>${sourceCount > 0 ? "追加导入" : "导入到"} ${escapeHtml(project.name)}</h2>
       </div>
       <form id="importForm" class="stack">
@@ -1626,31 +1973,31 @@ function renderSourcesStep() {
         </label>
         <label class="checkbox">
           <input type="checkbox" name="move">
-          <span>导入时移动文件，而不是复制</span>
+          <span>导入后把原文件移到项目里，而不是保留一份副本</span>
         </label>
         <div class="two-col">
           <label class="field">
             <span>粘贴内容格式</span>
             <select name="pasted_format">
               <option value="markdown">Markdown</option>
-              <option value="text">Plain Text</option>
+              <option value="text">纯文本</option>
             </select>
           </label>
           <label class="field">
             <span>生成文件名</span>
-            <input type="text" name="pasted_filename" placeholder="例如：brief.md">
+            <input type="text" name="pasted_filename" placeholder="例如：项目说明.md">
           </label>
         </div>
         <label class="field">
           <span>粘贴正文</span>
-          <textarea name="pasted_content" rows="10" placeholder="把文本或 Markdown 直接贴在这里，后端会先生成文件再导入项目"></textarea>
+          <textarea name="pasted_content" rows="10" placeholder="把文字直接贴在这里，系统会自动存成文件并加入项目"></textarea>
         </label>
         <div class="action-row">
-          <button type="submit" class="button button-secondary">${sourceCount > 0 ? "追加导入" : "导入并进入模板决策"}</button>
+          <button type="submit" class="button button-secondary">${sourceCount > 0 ? "继续添加内容" : "导入内容并进入下一步"}</button>
           <button type="button" class="button button-ghost" data-jump-step="project">切换项目</button>
         </div>
       </form>
-      <p class="helper">支持 Markdown、PDF、DOCX、TXT、URL，以及直接粘贴文本或 Markdown。</p>
+      <p class="helper">支持 Markdown、PDF、DOCX、TXT、网页链接，以及直接粘贴文字。</p>
     </section>
     ${sourceCount > 0 ? renderNextStepGuide("sources") : ""}
   `;
@@ -1659,7 +2006,7 @@ function renderSourcesStep() {
 function renderLockedStage(message) {
   return `
     <div class="empty-state">
-      <strong>当前步骤还不能操作</strong>
+      <strong>这一步还不能开始</strong>
       <p class="helper">${escapeHtml(message)}</p>
     </div>
   `;
@@ -1667,16 +2014,16 @@ function renderLockedStage(message) {
 
 function renderValidationDetails() {
   if (!state.validation || !state.selectedProject || state.validation.projectName !== state.selectedProject.name) {
-    return `<p class="helper">还没有执行项目校验。建议在跑后处理前先做一次校验。</p>`;
+    return `<p class="helper">还没有检查当前项目。建议在导出前先检查一次，避免遗漏问题。</p>`;
   }
 
   const result = state.validation.result;
   return `
     <div class="stack">
       <div class="badge-row">
-        ${metric("valid", result.is_valid ? "yes" : "no", result.is_valid)}
-        ${metric("errors", result.errors.length)}
-        ${metric("warnings", result.warnings.length)}
+        ${metric("结果", result.is_valid ? "通过" : "未通过", result.is_valid)}
+        ${metric("问题", result.errors.length)}
+        ${metric("提醒", result.warnings.length)}
       </div>
       ${result.errors.length ? `<pre class="status-log">${escapeHtml(result.errors.join("\n"))}</pre>` : ""}
       ${result.warnings.length ? `<pre class="status-log">${escapeHtml(result.warnings.join("\n"))}</pre>` : ""}
@@ -1686,7 +2033,7 @@ function renderValidationDetails() {
 
 function renderTemplateStep() {
   if (!state.selectedProject) {
-    return renderLockedStage("先完成第 1 步，选择一个项目。");
+    return renderLockedStage("请先创建或选择一个项目，再决定页面外观。");
   }
 
   const project = state.selectedProject;
@@ -1698,18 +2045,18 @@ function renderTemplateStep() {
       <div class="stack">
         <section class="subpanel">
           <div class="section-head">
-            <p class="section-kicker">Decision</p>
+            <p class="section-kicker">已确认</p>
             <h2>模板策略</h2>
           </div>
           <div class="status-grid">
             <article class="status-card status-ok">
-              <strong>模板决策已完成</strong>
-              <p class="helper">系统已检测到 design_spec.md 或下游产物，说明这一步已经完成或已被上游流程带过。</p>
+              <strong>外观方案已确认</strong>
+              <p class="helper">系统检测到你已经完成了这一步，可以直接继续后面的内容整理。</p>
             </article>
           </div>
           <div class="action-row">
             <button class="button button-ghost" data-jump-step="sources">查看已导入来源</button>
-            ${hasDesignSpec(project) ? '<button class="button button-secondary" data-jump-step="strategist">查看设计规范阶段</button>' : ""}
+            ${hasDesignSpec(project) ? '<button class="button button-secondary" data-jump-step="strategist">查看方案说明</button>' : ""}
           </div>
         </section>
         ${renderNextStepGuide("template")}
@@ -1795,17 +2142,17 @@ function renderTemplateStep() {
     <div class="stack">
       <section class="subpanel">
         <div class="section-head">
-          <p class="section-kicker">Template</p>
+          <p class="section-kicker">模板方案</p>
           <h2>选择模板</h2>
         </div>
-        <p class="helper">选择模板或自由设计。</p>
+        <p class="helper">你可以选一个现成模板，也可以让系统根据内容自由排版。</p>
 
         <div class="template-options">
           <label class="template-option-free ${selectedId === null ? "template-option-selected" : ""}">
             <input type="radio" name="template_choice" value="" ${selectedId === null ? "checked" : ""} data-template-free>
             <div class="template-option-content">
               <strong>自由设计</strong>
-              <p>AI 根据内容生成</p>
+              <p>不套用模板，直接根据内容生成页面风格</p>
             </div>
           </label>
         </div>
@@ -1830,10 +2177,10 @@ function renderTemplateStep() {
 
 function renderStrategistStep() {
   if (!state.selectedProject) {
-    return renderLockedStage("先完成第 1 步，选择一个项目。");
+    return renderLockedStage("请先创建或选择一个项目，再确认整体方案。");
   }
   if (state.selectedProject.source_count === 0) {
-    return renderLockedStage("先完成第 2 步，导入来源内容。");
+    return renderLockedStage("请先添加要整理的内容，系统才能给出方案建议。");
   }
 
   const project = state.selectedProject;
@@ -1846,12 +2193,12 @@ function renderStrategistStep() {
       <div class="stack">
         <section class="subpanel">
           <div class="section-head">
-            <p class="section-kicker">Strategist</p>
-            <h2>分析中...</h2>
+            <p class="section-kicker">方案分析</p>
+            <h2>正在分析内容...</h2>
           </div>
           <div class="loading-indicator">
             <div class="loading-spinner"></div>
-            <p>正在分析源内容，生成八项建议...</p>
+            <p>正在理解内容，并生成页面方案建议...</p>
           </div>
           ${renderSkeleton(6)}
         </section>
@@ -1865,15 +2212,15 @@ function renderStrategistStep() {
       <div class="stack">
         <section class="subpanel">
           <div class="section-head">
-            <p class="section-kicker">Strategist</p>
+            <p class="section-kicker">方案分析</p>
             <h2>八项确认</h2>
           </div>
           <div class="status-card status-warn">
-            <strong>需要先配置大模型</strong>
-            <p class="helper">八项确认需要调用大模型分析源内容。请先配置一个可用的模型 profile。</p>
+            <strong>需要先连接文字模型</strong>
+            <p class="helper">这一步需要系统先理解你的内容，所以要先配置一个可用的文字模型。</p>
           </div>
           <div class="action-row">
-            <button class="button button-primary" data-review-action="open-model-config">配置大模型</button>
+            <button class="button button-primary" data-review-action="open-model-config">去设置模型</button>
           </div>
         </section>
       </div>
@@ -1886,21 +2233,21 @@ function renderStrategistStep() {
       <div class="stack">
         <section class="subpanel">
           <div class="section-head">
-            <p class="section-kicker">Strategist</p>
-            <h2>设计规范与内容大纲</h2>
+            <p class="section-kicker">方案分析</p>
+            <h2>方案说明与内容结构</h2>
           </div>
           <div class="status-grid">
             <article class="status-card status-ok">
-              <strong>design_spec.md 已就绪</strong>
-              <p class="helper">系统已检测到设计规范文件，可以继续查看 AI 配图条件或进入 Executor。</p>
+              <strong>方案说明已经准备好</strong>
+              <p class="helper">你可以直接进入下一步，或者重新分析一遍再调整。</p>
             </article>
           </div>
           <div class="asset-actions">
             ${renderDocLink(project.design_spec)}
           </div>
-          <div class="action-row" style="margin-top: 12px;">
+          <div class="action-row action-row-top-gap">
             <button class="button button-ghost" data-strategist-action="reanalyze">重新分析</button>
-            <button class="button button-secondary" data-jump-step="executor">继续到 Executor</button>
+            <button class="button button-secondary" data-jump-step="executor">继续生成内容</button>
           </div>
         </section>
         ${renderNextStepGuide("strategist")}
@@ -1914,10 +2261,10 @@ function renderStrategistStep() {
       <div class="stack">
         <section class="subpanel">
           <div class="section-head">
-            <p class="section-kicker">Strategist</p>
-            <h2>设计规范</h2>
+            <p class="section-kicker">方案分析</p>
+            <h2>方案说明</h2>
           </div>
-          <p class="helper">点击"开始分析"后，AI 将分析源内容并生成八项建议。</p>
+          <p class="helper">点击“开始分析”后，系统会根据你的内容给出页数、风格、配色和图片建议。</p>
           <div class="action-row">
             <button class="button button-primary" data-strategist-action="analyze">开始分析</button>
           </div>
@@ -1990,8 +2337,8 @@ function renderStrategistStep() {
     <div class="stack">
       <section class="subpanel">
         <div class="section-head">
-          <p class="section-kicker">Strategist</p>
-          <h2>设计规范</h2>
+          <p class="section-kicker">方案分析</p>
+          <h2>方案说明</h2>
         </div>
 
         <form id="strategistForm" class="confirmation-form">
@@ -2078,7 +2425,7 @@ function renderStrategistStep() {
 
           <div class="action-row">
             <button type="button" class="button button-ghost" data-strategist-action="reanalyze">重新分析</button>
-            <button type="submit" class="button button-primary">保存设计规范</button>
+            <button type="submit" class="button button-primary">保存方案说明</button>
           </div>
         </form>
       </section>
@@ -2088,10 +2435,10 @@ function renderStrategistStep() {
 
 function renderImagesStep() {
   if (!state.selectedProject) {
-    return renderLockedStage("先完成第 1 步，选择一个项目。");
+    return renderLockedStage("请先创建或选择一个项目，再处理图片。");
   }
   if (!hasDesignSpec(state.selectedProject)) {
-    return renderLockedStage("先完成第 4 步，产出 design_spec.md。");
+    return renderLockedStage("请先完成方案确认，这样系统才知道需不需要图片。");
   }
 
   const project = state.selectedProject;
@@ -2115,13 +2462,13 @@ function renderImagesStep() {
       <div class="stack">
         <section class="subpanel">
           <div class="section-head">
-            <p class="section-kicker">Optional</p>
+            <p class="section-kicker">可选步骤</p>
             <h2>AI 配图</h2>
           </div>
           <div class="badge-row">
             ${metric("状态", "已跳过")}
           </div>
-          <p class="helper">设计规范未要求 AI 配图。</p>
+          <p class="helper">当前方案里没有必须生成的图片，可以直接继续。</p>
           <div class="action-row">
             <button class="button button-primary" data-jump-step="executor">继续</button>
           </div>
@@ -2135,7 +2482,7 @@ function renderImagesStep() {
       <div class="stack">
         <section class="subpanel">
           <div class="section-head">
-            <p class="section-kicker">Generating</p>
+            <p class="section-kicker">生成中</p>
             <h2>生成图片</h2>
           </div>
           <div class="loading-indicator">
@@ -2156,36 +2503,34 @@ function renderImagesStep() {
   let imageListHtml = "";
   if (totalImages > 0) {
     imageListHtml = `
-      <div class="image-resources-section" style="margin-top: 16px;">
-        <div class="section-head" style="margin-bottom: 8px;">
-          <h3 style="font-size: 14px; margin: 0;">图片资源清单</h3>
+      <div class="image-resources-section">
+        <div class="section-head image-resources-head">
+          <h3 class="image-resources-title">图片资源清单</h3>
           <span class="badge">${generatedCount}/${totalImages} 已生成</span>
         </div>
-        <div class="image-resource-list" style="max-height: 300px; overflow-y: auto;">
+        <div class="image-resource-list">
           ${imageResources.map((img, idx) => `
-            <div class="image-resource-item ${img.status === "generated" ? "image-generated" : ""}"
-                 style="display: flex; align-items: flex-start; gap: 12px; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; ${img.status === "generated" ? "background: rgba(61, 139, 122, 0.08); border-color: var(--teal);" : ""}">
-              <div style="flex: 1; min-width: 0;">
-                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                  <span style="font-weight: 500; font-size: 13px;">${escapeHtml(img.filename)}</span>
-                  <span class="badge ${img.status === "generated" ? "badge-strong" : ""}" style="font-size: 11px; padding: 2px 6px;">
+            <div class="image-resource-item ${img.status === "generated" ? "image-generated" : ""}">
+              <div class="image-resource-main">
+                <div class="image-resource-top">
+                  <span class="image-resource-name">${escapeHtml(img.filename)}</span>
+                  <span class="badge image-resource-badge ${img.status === "generated" ? "badge-strong" : ""}">
                     ${img.status === "generated" ? "已生成" : "待生成"}
                   </span>
                 </div>
-                <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">
+                <div class="image-resource-meta">
                   ${img.usage_pages ? `📍 ${escapeHtml(img.usage_pages)}` : ""}
                   ${img.dimensions ? ` · ${escapeHtml(img.dimensions)}` : ""}
                 </div>
                 ${img.description ? `
-                  <div style="font-size: 12px; color: var(--text); margin-top: 4px; line-height: 1.4;">
+                  <div class="image-resource-description">
                     ${escapeHtml(img.description.substring(0, 150))}${img.description.length > 150 ? "..." : ""}
                   </div>
                 ` : ""}
               </div>
               ${img.status === "pending" ? `
-                <button class="button button-ghost button-small"
+                <button class="button button-ghost button-small image-resource-generate"
                         data-generate-single-image="${idx}"
-                        style="padding: 4px 10px; font-size: 12px; white-space: nowrap;"
                         ${!activeImageProfile?.configured ? "disabled" : ""}>
                   生成
                 </button>
@@ -2194,7 +2539,7 @@ function renderImagesStep() {
           `).join("")}
         </div>
         ${pendingImages.length > 0 && activeImageProfile?.configured ? `
-          <div class="action-row" style="margin-top: 12px;">
+          <div class="action-row action-row-top-gap">
             <button class="button button-primary" data-generate-all-images>
               批量生成 (${pendingImages.length} 张)
             </button>
@@ -2208,27 +2553,27 @@ function renderImagesStep() {
     <div class="stack">
       <section class="subpanel">
         <div class="section-head">
-          <p class="section-kicker">Optional</p>
+          <p class="section-kicker">可选步骤</p>
           <h2>AI 配图</h2>
         </div>
 
         ${!activeImageProfile?.configured ? `
-          <p class="helper">需要配置图片生成模型。</p>
+          <p class="helper">要生成图片，先连接一个可用的图片模型服务。</p>
           <div class="action-row">
-            <button class="button button-primary" data-image-action="open-config">配置模型</button>
-            <button class="button button-ghost" data-jump-step="executor">跳过</button>
+            <button class="button button-primary" data-image-action="open-config">去设置图片模型</button>
+            <button class="button button-ghost" data-jump-step="executor">先跳过</button>
           </div>
         ` : `
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <p class="helper" style="margin: 0;">${totalImages > 0 ? `设计规范中定义了 ${totalImages} 张配图资源。` : "输入图片描述生成配图。"}</p>
-            <button class="button button-ghost button-small" data-image-action="open-config" style="padding: 4px 8px; font-size: 12px;">编辑配置</button>
+          <div class="inline-toolbar">
+            <p class="helper inline-toolbar-text">${totalImages > 0 ? `系统识别出 ${totalImages} 张建议图片，你可以逐张生成。` : "输入一句图片描述，直接生成一张插图。"}</p>
+            <button class="button button-ghost button-small compact-button" data-image-action="open-config">修改模型设置</button>
           </div>
 
           ${imageListHtml}
 
           ${totalImages === 0 ? `
-            <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
-              <p class="helper" style="margin-bottom: 8px;">手动生成单张图片：</p>
+            <div class="section-divider-block">
+              <p class="helper helper-gap-sm">手动生成一张图片：</p>
               <label class="field">
                 <span>图片描述</span>
                 <textarea id="imagePromptInput" rows="2" placeholder="描述图片...">${escapeHtml(imgGen.prompt)}</textarea>
@@ -2254,20 +2599,20 @@ function renderImagesStep() {
           ` : ""}
 
           ${imgGen.lastResult ? `
-            <div class="status-card status-ok" style="margin-top: 12px;">
+            <div class="status-card status-ok status-card-top-gap">
               <strong>生成成功</strong>
               <p class="helper">${escapeHtml(imgGen.lastResult.filename)}</p>
             </div>
           ` : ""}
           ${imgGen.error ? `
-            <div class="status-card status-error" style="margin-top: 12px;">
+            <div class="status-card status-error status-card-top-gap">
               <strong>失败</strong>
               <p class="helper">${escapeHtml(imgGen.error)}</p>
             </div>
           ` : ""}
 
-          <div class="action-row" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
-            <button class="button button-ghost" data-jump-step="executor">跳过，继续下一步</button>
+          <div class="action-row section-divider-block">
+            <button class="button button-ghost" data-jump-step="executor">暂时跳过，继续下一步</button>
           </div>
         `}
       </section>
@@ -2278,10 +2623,10 @@ function renderImagesStep() {
 
 function renderExecutorStep() {
   if (!state.selectedProject) {
-    return renderLockedStage("先完成第 1 步，选择一个项目。");
+    return renderLockedStage("请先创建或选择一个项目，再开始生成页面。");
   }
   if (!hasDesignSpec(state.selectedProject)) {
-    return renderLockedStage("先完成第 4 步，产出 design_spec.md。");
+    return renderLockedStage("请先完成方案确认，系统需要先知道页面风格和结构。");
   }
 
   const project = state.selectedProject;
@@ -2317,33 +2662,33 @@ function renderExecutorStep() {
 
   const profileSelectHtml = `
     <label class="field">
-      <span>当前使用的模型配置</span>
+      <span>当前使用的模型设置</span>
       <select id="reviewProfileSelect" ${profiles.length === 0 ? "disabled" : ""}>
-        ${profiles.length === 0 ? '<option value="">先新增模型配置</option>' : profileOptions}
+        ${profiles.length === 0 ? '<option value="">先新增模型设置</option>' : profileOptions}
       </select>
     </label>
   `;
 
   const modelConfigButtonHtml = `
-    <button class="button button-ghost" type="button" data-review-action="open-model-config">配置大模型</button>
+    <button class="button button-ghost" type="button" data-review-action="open-model-config">修改模型设置</button>
   `;
 
   // SVG preview section (shown when there are existing SVGs)
   const svgPreviewHtml = project.svg_output_count > 0 ? `
     <section class="subpanel">
       <div class="section-head">
-        <p class="section-kicker">Preview</p>
-        <h2>已生成页面</h2>
+        <p class="section-kicker">页面预览</p>
+          <h2>已生成的页面</h2>
       </div>
       <div class="badge-row">
         ${metric("svg_output", project.svg_output_count)}
       </div>
-      <div class="preview-grid" style="margin-top: 12px;">
+      <div class="preview-grid preview-grid-top-gap">
         ${renderSlides(project.preview_slides)}
       </div>
-      <div class="action-row" style="margin-top: 12px;">
+      <div class="action-row action-row-top-gap">
         <button class="button button-ghost" type="button" data-review-action="regenerate-all">重新生成全部</button>
-        <button class="button button-ghost" type="button" data-review-action="delete-all-svg">删除全部 SVG</button>
+        <button class="button button-ghost" type="button" data-review-action="delete-all-svg">删除全部页面文件</button>
       </div>
     </section>
   ` : "";
@@ -2352,27 +2697,27 @@ function renderExecutorStep() {
     <div class="stack">
       <section class="subpanel">
         <div class="section-head">
-          <p class="section-kicker">Executor</p>
+          <p class="section-kicker">内容生成</p>
           <h2>页面生成与讲稿补齐</h2>
         </div>
         <div class="badge-row">
-          ${metric("design_spec", hasDesignSpec(project) ? "ready" : "missing", hasDesignSpec(project))}
-          ${metric("svg_output", project.svg_output_count)}
-          ${metric("total.md", project.has_total_notes ? "ok" : "-", project.has_total_notes)}
+          ${metric("方案说明", hasDesignSpec(project) ? "已准备" : "未准备", hasDesignSpec(project))}
+          ${metric("页面数量", project.svg_output_count)}
+          ${metric("讲稿总表", project.has_total_notes ? "已生成" : "未生成", project.has_total_notes)}
         </div>
 
         ${phase === "awaiting-model" ? `
-          <p class="helper">先配置大模型。</p>
+          <p class="helper">开始生成前，先连接一个可用的文字模型服务。</p>
           <div class="action-row">
-            <button class="button button-primary" data-review-action="open-model-config">配置模型</button>
+            <button class="button button-primary" data-review-action="open-model-config">去设置模型</button>
           </div>
         ` : ""}
 
         ${phase === "ready-svg" ? `
-          <p class="helper">点击生成 SVG 页面。</p>
+          <p class="helper">准备好了，先生成页面内容。</p>
           ${profileSelectHtml}
           <div class="action-row">
-            <button class="button button-primary" data-review-action="generate-svg">生成 SVG</button>
+            <button class="button button-primary" data-review-action="generate-svg">开始生成页面</button>
             ${modelConfigButtonHtml}
           </div>
         ` : ""}
@@ -2381,15 +2726,15 @@ function renderExecutorStep() {
           <div class="status-card status-info">
             <strong>${svgGen.totalPages > 0 ? (svgGen.mode === "regenerate" ? "重新生成中..." : "生成中...") : "任务运行中..."}</strong>
             ${svgGen.totalPages > 0 ? `
-              <div class="progress-bar" role="progressbar" aria-valuenow="${Math.round((svgGen.generatedPages / svgGen.totalPages) * 100)}" aria-valuemax="100" aria-label="SVG 生成进度">
+              <div class="progress-bar" role="progressbar" aria-valuenow="${Math.round((svgGen.generatedPages / svgGen.totalPages) * 100)}" aria-valuemax="100" aria-label="页面生成进度">
                 <div class="progress-fill" style="width: ${Math.round((svgGen.generatedPages / svgGen.totalPages) * 100)}%"></div>
               </div>
-              <p class="helper">第 ${svgGen.generatedPages} / ${svgGen.totalPages} 页 — ${Math.round((svgGen.generatedPages / svgGen.totalPages) * 100)}%</p>
+              <p class="helper">正在生成第 ${svgGen.generatedPages} / ${svgGen.totalPages} 页，已完成 ${Math.round((svgGen.generatedPages / svgGen.totalPages) * 100)}%</p>
             ` : `
-              <div class="loading-indicator" style="padding: 16px 0;">
+              <div class="loading-indicator loading-indicator-roomy">
                 <div class="loading-spinner"></div>
               </div>
-              <p class="helper">等待后端响应...</p>
+              <p class="helper">系统正在准备生成任务，请稍候...</p>
             `}
           </div>
           <div class="log-panel">
@@ -2398,18 +2743,18 @@ function renderExecutorStep() {
         ` : ""}
 
         ${phase === "ready-notes" ? `
-          <p class="helper">SVG 完成，生成讲稿。</p>
+          <p class="helper">页面已经生成，接下来补齐讲稿备注。</p>
           ${profileSelectHtml}
           <div class="action-row">
-            <button class="button button-primary" data-review-action="generate-notes">生成讲稿</button>
+            <button class="button button-primary" data-review-action="generate-notes">生成讲稿备注</button>
             ${modelConfigButtonHtml}
           </div>
         ` : ""}
 
         ${phase === "complete" ? `
-          <p class="helper">已完成，进入导出。</p>
+          <p class="helper">页面和讲稿都准备好了，可以开始导出 PPT。</p>
           <div class="action-row">
-            <button class="button button-primary" data-jump-step="post">进入导出</button>
+            <button class="button button-primary" data-jump-step="post">去导出 PPT</button>
           </div>
         ` : ""}
       </section>
@@ -2422,7 +2767,7 @@ function renderExecutorStep() {
 
 function renderPipelineStep() {
   if (!state.selectedProject) {
-    return renderLockedStage("先完成第 1 步，选择一个项目。");
+    return renderLockedStage("请先创建或选择一个项目，再整理导出文件。");
   }
 
   return `
@@ -2436,7 +2781,7 @@ function renderPipelineStep() {
           <section class="step-card">
             <div class="step-card-top">
               <div>
-                <p class="section-kicker">Stage ${index + 1}</p>
+                <p class="section-kicker">整理步骤 ${index + 1}</p>
                 <h3 class="card-title">${escapeHtml(step.label)}</h3>
                 <p class="helper">${escapeHtml(guide.description || "")}</p>
                 <p class="step-state ${stepState.disabled ? "step-state-warn" : "step-state-ok"}">${escapeHtml(stepState.reason)}</p>
@@ -2446,7 +2791,7 @@ function renderPipelineStep() {
                 data-run-step="${escapeHtml(step.id)}"
                 ${stepState.disabled ? "disabled" : ""}
               >
-                运行 ${escapeHtml(step.label)}
+                开始 ${escapeHtml(step.label)}
               </button>
             </div>
             <div class="step-card-grid">
@@ -2455,7 +2800,7 @@ function renderPipelineStep() {
                 <div class="checklist">
                   ${checklist.map((item) => `
                     <div class="checklist-item ${item.ok ? "checklist-item-ok" : "checklist-item-warn"}">
-                      <span class="check-indicator">${item.ok ? "Ready" : "Hold"}</span>
+                      <span class="check-indicator">${item.ok ? "就绪" : "待处理"}</span>
                       <span>${escapeHtml(item.label)}</span>
                     </div>
                   `).join("")}
@@ -2464,7 +2809,7 @@ function renderPipelineStep() {
               <div class="detail-block">
                 <p class="detail-title">本步产出</p>
                 <div class="badge-row">
-                  ${outputs.map((item) => metric("output", item)).join("")}
+                  ${outputs.map((item) => metric("产出", item)).join("")}
                 </div>
               </div>
             </div>
@@ -2487,7 +2832,7 @@ function renderLinks(items, emptyText) {
 
 function renderSlides(slides) {
   if (!slides || slides.length === 0) {
-    return `<p class="helper">还没有可预览的 SVG 页面。</p>`;
+    return `<p class="helper">还没有可预览的页面。</p>`;
   }
   const cacheBuster = Date.now();
   return slides.map((slide, index) => {
@@ -2545,7 +2890,7 @@ function updateSvgPreviewDisplay() {
   }
   if (elements.svgPreviewImg) {
     elements.svgPreviewImg.src = urlWithCache;
-    elements.svgPreviewImg.alt = slide?.name || "SVG Preview";
+    elements.svgPreviewImg.alt = slide?.name || "页面预览";
   }
   if (elements.svgPageIndicator) {
     elements.svgPageIndicator.textContent = `第 ${currentIndex + 1} 页 / 共 ${slides.length} 页`;
@@ -2652,21 +2997,21 @@ function renderDocLink(item, options = {}) {
 
 function renderDeliverStep() {
   if (!state.selectedProject) {
-    return renderLockedStage("先完成第 1 步，选择一个项目。");
+    return renderLockedStage("请先创建或选择一个项目，再查看导出结果。");
   }
 
   const project = state.selectedProject;
   const deliverySummary = [
-    metric("pptx", project.pptx_files.length, project.pptx_files.length > 0),
-    metric("svg_final", project.svg_final_count, project.svg_final_count > 0),
-    metric("notes/*.md", project.split_notes_count || 0, (project.split_notes_count || 0) > 0),
-    metric("sources", project.source_count, project.source_count > 0),
+    metric("PPT 文件", project.pptx_files.length, project.pptx_files.length > 0),
+    metric("最终页面", project.svg_final_count, project.svg_final_count > 0),
+    metric("逐页讲稿", project.split_notes_count || 0, (project.split_notes_count || 0) > 0),
+    metric("来源内容", project.source_count, project.source_count > 0),
   ].join("");
   return `
     <div class="stack">
       <section class="subpanel">
         <div class="section-head">
-          <p class="section-kicker">Summary</p>
+          <p class="section-kicker">交付概览</p>
           <h2>交付总览</h2>
         </div>
         <div class="badge-row">${deliverySummary}</div>
@@ -2674,37 +3019,37 @@ function renderDeliverStep() {
 
       <section class="subpanel">
         <div class="section-head">
-          <p class="section-kicker">Docs</p>
+          <p class="section-kicker">关键文档</p>
           <h2>关键文档</h2>
         </div>
         <div class="asset-actions">
-          ${renderDocLink(project.total_notes, { emptyText: '<span class="helper">还没有 total.md</span>' })}
-          ${renderDocLink(project.design_spec, { emptyText: '<span class="helper">还没有设计规范文件</span>' })}
+          ${renderDocLink(project.total_notes, { emptyText: '<span class="helper">还没有讲稿总表</span>' })}
+          ${renderDocLink(project.design_spec, { emptyText: '<span class="helper">还没有方案说明文件</span>' })}
         </div>
       </section>
 
       <section class="subpanel">
         <div class="section-head">
-          <p class="section-kicker">Outputs</p>
-          <h2>PPTX 产物</h2>
+          <p class="section-kicker">导出文件</p>
+          <h2>PPT 文件</h2>
         </div>
-        <div class="asset-actions">${renderLinks(project.pptx_files, "还没有 PPTX 文件")}</div>
+        <div class="asset-actions">${renderLinks(project.pptx_files, "还没有导出的演示文稿文件")}</div>
       </section>
 
       <section class="subpanel">
         <div class="section-head">
-          <p class="section-kicker">Sources</p>
+          <p class="section-kicker">来源归档</p>
           <h2>归档来源</h2>
         </div>
-        <div class="asset-actions">${project.source_markdown && project.source_markdown.length > 0 ? project.source_markdown.map((item) => renderDocLink(item)).join("") : '<p class="helper">还没有归档的 Markdown 来源</p>'}</div>
+        <div class="asset-actions">${project.source_markdown && project.source_markdown.length > 0 ? project.source_markdown.map((item) => renderDocLink(item)).join("") : '<p class="helper">还没有归档的来源内容</p>'}</div>
       </section>
 
       <section class="subpanel">
         <div class="section-head">
-          <p class="section-kicker">Preview</p>
-          <h2>SVG 预览</h2>
+          <p class="section-kicker">页面预览</p>
+          <h2>页面文件预览</h2>
         </div>
-        <div class="asset-actions">${renderLinks(project.all_slides, "还没有 SVG 文件")}</div>
+        <div class="asset-actions">${renderLinks(project.all_slides, "还没有页面预览文件")}</div>
         <div class="preview-grid">${renderSlides(project.preview_slides)}</div>
       </section>
     </div>
@@ -2713,30 +3058,30 @@ function renderDeliverStep() {
 
 function renderPostStep() {
   if (!state.selectedProject) {
-    return renderLockedStage("先完成第 1 步，选择一个项目。");
+    return renderLockedStage("请先创建或选择一个项目，再进入导出检查。");
   }
 
   const project = state.selectedProject;
   const preflight = [
     {
-      label: "svg_output",
+      label: "页面内容",
       ok: project.svg_output_count > 0,
-      desc: project.svg_output_count > 0 ? `已生成 ${project.svg_output_count} 个 SVG 页面` : "缺失。需要先完成 Executor 的页面生成部分。",
+      desc: project.svg_output_count > 0 ? `已生成 ${project.svg_output_count} 页页面内容` : "还没有页面内容，请先完成页面生成。",
     },
     {
-      label: "notes/total.md",
+      label: "讲稿总表",
       ok: project.has_total_notes,
-      desc: project.has_total_notes ? "已准备，可以执行 Split Notes" : "缺失。需要先完成 Executor 的讲稿生成部分。",
+      desc: project.has_total_notes ? "讲稿总表已准备好，可以继续整理" : "还没有讲稿总表，请先生成讲稿备注。",
     },
     {
-      label: "notes/*.md",
+      label: "逐页讲稿备注",
       ok: (project.split_notes_count || 0) > 0,
-      desc: (project.split_notes_count || 0) > 0 ? `已拆分 ${project.split_notes_count} 个逐页备注` : "还没拆分，将在 Split Notes 后生成。",
+      desc: (project.split_notes_count || 0) > 0 ? `已整理 ${project.split_notes_count} 份逐页备注` : "还没有整理成逐页备注。",
     },
     {
-      label: "svg_final",
+      label: "最终页面文件",
       ok: project.svg_final_count > 0,
-      desc: project.svg_final_count > 0 ? `已生成 ${project.svg_final_count} 个最终 SVG` : "还没生成，将在 Finalize SVG 后生成。",
+      desc: project.svg_final_count > 0 ? `最终页面文件已准备好（${project.svg_final_count} 页）` : "最终页面文件还没有整理完成。",
     },
   ];
 
@@ -2744,8 +3089,8 @@ function renderPostStep() {
     <div class="stack">
       <section class="subpanel">
         <div class="section-head">
-          <p class="section-kicker">Preflight</p>
-          <h2>进入后处理前检查</h2>
+          <p class="section-kicker">导出前检查</p>
+          <h2>导出前检查</h2>
         </div>
         <div class="status-grid">
           ${preflight.map((item) => `
@@ -2756,15 +3101,15 @@ function renderPostStep() {
           `).join("")}
         </div>
         <div class="action-row">
-          <button class="button button-secondary" data-review-action="validate">执行项目校验</button>
+          <button class="button button-secondary" data-review-action="validate">检查项目</button>
           <button class="button button-ghost" data-review-action="refresh">刷新项目状态</button>
-          <button class="button button-ghost" data-jump-step="executor">回到 Executor</button>
+          <button class="button button-ghost" data-jump-step="executor">回到内容生成</button>
         </div>
       </section>
 
       <section class="subpanel">
         <div class="section-head">
-          <p class="section-kicker">Validation</p>
+          <p class="section-kicker">检查结果</p>
           <h2>校验结果</h2>
         </div>
         ${renderValidationDetails()}
@@ -3063,6 +3408,7 @@ function renderAll(options = {}) {
   const { stats = true, context = true, rail = true, stage = true } = options;
   if (stats) renderStats();
   renderUserBadge();
+  renderHeroStatus();
   if (context) renderProjectContext();
   if (rail) renderStepRail();
   if (stage) renderStage();
@@ -3075,32 +3421,32 @@ function renderInitializationError(error) {
 
   elements.projectContext.innerHTML = `
     <div class="context-empty">
-      <strong>控制台初始化失败</strong>
-      <p class="context-text">页面静态资源已经加载成功，但 Web API 当前没有正常响应，所以项目数据、用户信息和工作流状态还不可用。</p>
+      <strong>工作台暂时打不开</strong>
+      <p class="context-text">页面已经加载出来了，但后台服务暂时没有正常响应，所以项目、账号和流程数据还不能显示。</p>
       <div class="detail-block">
-        <p class="detail-title">诊断信息</p>
+        <p class="detail-title">当前情况</p>
         <p class="helper">请求接口：${escapeHtml(pathText)}</p>
         <p class="helper">返回状态：${escapeHtml(statusText)}</p>
         <p class="helper">错误详情：${escapeHtml(detail)}</p>
       </div>
       <div class="detail-block">
-        <p class="detail-title">建议处理</p>
+        <p class="detail-title">你可以这样处理</p>
         <ul class="context-list">
-          <li>确认当前打开的是 FastAPI Web 服务首页，而不是单独打开静态 HTML 文件。</li>
-          <li>如果刚更新过后端，请重启服务后再刷新页面。</li>
-          <li>推荐使用 <code>python3 webapp/server.py</code> 启动 Web 服务。</li>
+          <li>确认你打开的是 Web 服务首页，而不是单独打开的静态 HTML 文件。</li>
+          <li>如果刚更新过后端，先重启服务，再刷新当前页面。</li>
+          <li>推荐使用 <code>python3 webapp/server.py</code> 启动服务。</li>
         </ul>
       </div>
     </div>
   `;
 
-  elements.stageKicker.textContent = "System";
-  elements.stageTitle.textContent = "后端接口不可用";
-  elements.stageDescription.textContent = "前端已进入故障保护模式，等待 Web API 恢复。";
+  elements.stageKicker.textContent = "系统状态";
+  elements.stageTitle.textContent = "后台服务暂时不可用";
+  elements.stageDescription.textContent = "页面已进入保护模式，等待后台服务恢复。";
   elements.stageBody.innerHTML = `
     <div class="status-card status-error">
-      <strong>无法完成初始化</strong>
-      <p class="helper">只要后端 API 恢复，刷新页面后就会重新进入正常工作台。</p>
+      <strong>现在还不能继续操作</strong>
+      <p class="helper">后台服务恢复后，刷新页面就可以重新进入正常工作台。</p>
       <pre class="status-log">${escapeHtml(`${statusText}\n${pathText}\n${detail}`)}</pre>
     </div>
   `;
@@ -3151,24 +3497,74 @@ async function loadCurrentUser() {
   state.user = data.user || null;
 }
 
+async function saveAccountSettings(event) {
+  event.preventDefault();
+  if (!state.user) {
+    return;
+  }
+
+  const displayName = elements.accountDisplayNameInput?.value?.trim() || "";
+  const currentPassword = elements.accountCurrentPasswordInput?.value || "";
+  const nextPassword = elements.accountNewPasswordInput?.value || "";
+
+  if (!displayName) {
+    showFlash("显示名不能为空。", "error");
+    elements.accountDisplayNameInput?.focus();
+    return;
+  }
+  if (nextPassword && nextPassword.length < 6) {
+    showFlash("新密码至少需要 6 位。", "error");
+    elements.accountNewPasswordInput?.focus();
+    return;
+  }
+  if (nextPassword && !currentPassword) {
+    showFlash("修改密码时请先输入当前密码。", "error");
+    elements.accountCurrentPasswordInput?.focus();
+    return;
+  }
+
+  const payload = { display_name: displayName };
+  if (nextPassword) {
+    payload.current_password = currentPassword;
+    payload.password = nextPassword;
+  }
+
+  const data = await apiFetch("/api/me", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+  state.user = data.user || state.user;
+  renderUserBadge();
+  renderAccountSettingsModal();
+  closeAccountSettingsModal();
+  showFlash(nextPassword ? "账号信息和密码都已更新。" : "账号信息已更新。");
+}
+
 function renderUserBadge() {
-  if (!elements.userBadge || !elements.logoutButton || !elements.openAdminPanelButton) {
+  if (!elements.userBadge || !elements.logoutButton) {
     return;
   }
   if (!state.user) {
     elements.userBadge.classList.add("hidden");
+    elements.openAccountSettingsButton?.classList.add("hidden");
     elements.logoutButton.classList.add("hidden");
-    elements.openAdminPanelButton.classList.add("hidden");
+    elements.openAdminPanelButton?.classList.add("hidden");
+    document.body.classList.remove("is-admin", "is-user");
     return;
   }
   elements.userBadge.textContent = `${state.user.display_name || state.user.username} · ${state.user.role}`;
   elements.userBadge.classList.remove("hidden");
+  elements.openAccountSettingsButton?.classList.remove("hidden");
   elements.logoutButton.classList.remove("hidden");
-  if (state.user.role === "admin") {
-    elements.openAdminPanelButton.classList.remove("hidden");
-  } else {
-    elements.openAdminPanelButton.classList.add("hidden");
+  if (elements.openAdminPanelButton) {
+    if (state.user.role === "admin") {
+      elements.openAdminPanelButton.classList.remove("hidden");
+    } else {
+      elements.openAdminPanelButton.classList.add("hidden");
+    }
   }
+  document.body.classList.toggle("is-admin", state.user.role === "admin");
+  document.body.classList.toggle("is-user", state.user.role !== "admin");
 }
 
 async function logout() {
@@ -3191,6 +3587,7 @@ async function loadAdminData() {
   if (state.admin.userQuery) userParams.set("q", state.admin.userQuery);
   if (state.admin.roleFilter) userParams.set("role", state.admin.roleFilter);
   if (state.admin.statusFilter) userParams.set("status", state.admin.statusFilter);
+  if (state.admin.providerFilter) userParams.set("provider", state.admin.providerFilter);
   userParams.set("limit", String(state.admin.pageSize));
   userParams.set("offset", String(userOffset));
 
@@ -3260,12 +3657,12 @@ async function copyAuditLogs() {
     return `[${log.created_at}] ${log.action} ${log.resource_type}:${log.resource_id || "-"} user=${log.user_id || "-"} ${JSON.stringify(log.details || {})}`;
   }).join("\n");
   if (!rows) {
-    showFlash("暂无可复制的审计日志", "error");
+    showFlash("当前没有可复制的访问记录。", "error");
     return;
   }
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(rows);
-    showFlash("已复制当前审计日志");
+    showFlash("当前访问记录已复制。");
     return;
   }
   const textarea = document.createElement("textarea");
@@ -3274,7 +3671,7 @@ async function copyAuditLogs() {
   textarea.select();
   document.execCommand("copy");
   textarea.remove();
-  showFlash("已复制当前审计日志");
+  showFlash("当前访问记录已复制。");
 }
 
 async function updateAdminUser(userId, payload) {
@@ -3284,6 +3681,22 @@ async function updateAdminUser(userId, payload) {
   });
   await loadAdminData();
   if (state.admin.selectedUserId) {
+    await loadAdminUserDetail(state.admin.selectedUserId);
+  }
+  renderAdminPanel();
+}
+
+async function createAdminUser(payload) {
+  const data = await apiFetch("/api/admin/users", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  await loadAdminData();
+  const createdUserId = data?.user?.id || null;
+  if (createdUserId) {
+    state.admin.selectedUserId = createdUserId;
+    await loadAdminUserDetail(createdUserId);
+  } else if (state.admin.selectedUserId) {
     await loadAdminUserDetail(state.admin.selectedUserId);
   }
   renderAdminPanel();
@@ -3323,6 +3736,9 @@ function renderAdminPanel() {
   if (elements.adminStatusFilter) {
     elements.adminStatusFilter.value = state.admin.statusFilter || "";
   }
+  if (elements.adminProviderFilter) {
+    elements.adminProviderFilter.value = state.admin.providerFilter || "";
+  }
   if (elements.adminAuditActionInput) {
     elements.adminAuditActionInput.value = state.admin.auditAction || "";
   }
@@ -3335,27 +3751,39 @@ function renderAdminPanel() {
   if (elements.adminAuditEndInput) {
     elements.adminAuditEndInput.value = state.admin.auditEnd || "";
   }
+  const activeUserFilters = [];
+  if (state.admin.userQuery) activeUserFilters.push(`搜索: ${state.admin.userQuery}`);
+  if (state.admin.roleFilter) activeUserFilters.push(`角色: ${state.admin.roleFilter === "admin" ? "管理员" : "普通用户"}`);
+  if (state.admin.statusFilter) activeUserFilters.push(`状态: ${state.admin.statusFilter}`);
+  if (state.admin.providerFilter) activeUserFilters.push(`来源: ${state.admin.providerFilter}`);
+  if (elements.adminUsersSummary) {
+    elements.adminUsersSummary.textContent = activeUserFilters.length
+      ? `当前筛选 ${activeUserFilters.join(" / ")} · 本页 ${state.admin.users.length} 人，共 ${state.admin.totalUsers} 人`
+      : `当前显示全部用户 · 本页 ${state.admin.users.length} 人，共 ${state.admin.totalUsers} 人`;
+    elements.adminUsersSummary.title = elements.adminUsersSummary.textContent;
+  }
   elements.adminUsersList.innerHTML = (state.admin.users || []).map((user) => `
     <article class="pm-item admin-user-card ${state.admin.selectedUserId === user.id ? "pm-item-active" : ""}" data-admin-user-id="${escapeHtml(user.id)}" data-admin-active="${user.is_active ? "1" : "0"}">
-      <div class="pm-detail-header">
-        <div>
-          <h3 class="pm-item-name">${escapeHtml(user.display_name || user.username)}</h3>
-          <p class="pm-item-meta">${escapeHtml(user.email)} · ${escapeHtml(user.role)} · ${user.is_active ? "启用" : "禁用"}</p>
+      <div class="admin-user-card-top">
+        <div class="admin-user-main">
+          <h3 class="pm-item-name" title="${escapeHtml(user.display_name || user.username)}">${escapeHtml(user.display_name || user.username)}</h3>
+          <p class="pm-item-meta" title="${escapeHtml(user.email)}">${escapeHtml(user.email)}</p>
         </div>
-        <div class="pm-detail-actions admin-user-actions">
-          <button type="button" class="button button-ghost" data-admin-action="toggle-active">${user.is_active ? "禁用" : "启用"}</button>
-          <button type="button" class="button button-ghost" data-admin-action="purge-sessions">强制下线</button>
-        </div>
+        <span class="badge ${user.is_active ? "badge-positive" : ""}">${user.is_active ? "启用" : "禁用"}</span>
       </div>
-      <div class="pm-item-badges">
+      <div class="pm-item-badges admin-user-meta-badges">
+        <span class="badge">${escapeHtml(user.role === "admin" ? "管理员" : "普通用户")}</span>
         ${(user.groups || []).slice(0, 4).map((group) => `<span class="badge">${escapeHtml(group)}</span>`).join("")}
+      </div>
+      <div class="admin-user-summary">
+        <span title="${escapeHtml(user.last_login_at || "-")}">最近登录：${escapeHtml(user.last_login_at || "-")}</span>
       </div>
       <div class="admin-user-controls">
         <label class="field admin-field">
           <span>角色</span>
           <select data-admin-role>
-            <option value="user" ${user.role === "user" ? "selected" : ""}>user</option>
-            <option value="admin" ${user.role === "admin" ? "selected" : ""}>admin</option>
+            <option value="user" ${user.role === "user" ? "selected" : ""}>普通用户</option>
+            <option value="admin" ${user.role === "admin" ? "selected" : ""}>管理员</option>
           </select>
         </label>
         <label class="field admin-field">
@@ -3364,56 +3792,102 @@ function renderAdminPanel() {
         </label>
         <div class="action-row admin-actions">
           <button type="button" class="button button-secondary" data-admin-action="save">保存</button>
+          <button type="button" class="button button-ghost" data-admin-action="toggle-active">${user.is_active ? "禁用" : "启用"}</button>
+          <button type="button" class="button button-ghost" data-admin-action="purge-sessions">强制下线</button>
         </div>
       </div>
     </article>
-  `).join("") || `<p class="helper">暂无用户数据</p>`;
+  `).join("") || `
+    <div class="admin-empty-state">
+      <strong>没有匹配的用户</strong>
+      <p class="helper">试试清空搜索词，或者放宽角色/状态筛选条件。</p>
+      <div class="action-row">
+        <button type="button" class="button button-secondary button-small" data-admin-empty-action="focus-create-user">创建本地账号</button>
+      </div>
+    </div>
+  `;
   const logRows = (state.admin.logs || []).map((log) => {
     const userLabel = log.user_display_name || log.user_email || log.user_id || "-";
+    const detailText = JSON.stringify(log.details || {});
+    const compactDetail = truncateText(detailText, 240);
     return `
       <div class="admin-audit-row" data-audit-user="${escapeHtml(log.user_id || "")}">
-        <strong>[${escapeHtml(log.created_at)}] ${escapeHtml(log.action)} ${escapeHtml(log.resource_type)}:${escapeHtml(log.resource_id || "-")}</strong>
-        <div class="admin-audit-meta">
-          <span>user:</span>
-          ${log.user_id ? `<span class="admin-audit-link" data-admin-audit-user="${escapeHtml(log.user_id)}">${escapeHtml(userLabel)}</span>` : `<span>${escapeHtml(userLabel)}</span>`}
-          <span>details:</span>
-          <span>${escapeHtml(JSON.stringify(log.details || {}))}</span>
+        <div class="admin-audit-topline">
+          <strong>${escapeHtml(log.action)}</strong>
+          <span class="helper">${escapeHtml(log.created_at)}</span>
         </div>
+        <p class="admin-audit-resource" title="${escapeHtml(`${log.resource_type}:${log.resource_id || "-"}`)}">${escapeHtml(log.resource_type)}:${escapeHtml(log.resource_id || "-")}</p>
+        <div class="admin-audit-meta">
+          <span>账号：</span>
+          ${log.user_id ? `<span class="admin-audit-link" data-admin-audit-user="${escapeHtml(log.user_id)}" title="${escapeHtml(userLabel)}">${escapeHtml(truncateText(userLabel, 48))}</span>` : `<span title="${escapeHtml(userLabel)}">${escapeHtml(truncateText(userLabel, 48))}</span>`}
+        </div>
+        <div class="admin-audit-detail" title="${escapeHtml(detailText)}">${escapeHtml(compactDetail)}</div>
       </div>
     `;
   }).join("");
-  elements.adminAuditLog.innerHTML = logRows || `<p class="helper">暂无审计日志</p>`;
+  elements.adminAuditLog.innerHTML = logRows || `
+    <div class="admin-empty-state">
+      <strong>当前条件下没有审计日志</strong>
+      <p class="helper">可以缩短时间范围，或者清空动作/资源类型筛选后再查看。</p>
+    </div>
+  `;
 
   if (elements.adminAuditSummary) {
     const counts = {};
     (state.admin.logs || []).forEach((log) => {
-      const key = log.action || "unknown";
+      const key = log.action || "未分类";
       counts[key] = (counts[key] || 0) + 1;
     });
-    const statBadges = Object.entries(counts).map(([action, count]) => {
-      return `<span class="badge">${escapeHtml(action)}: ${count}</span>`;
+    const sortedCounts = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    const primaryCounts = sortedCounts.slice(0, 4);
+    const overflowCount = sortedCounts.slice(4).reduce((sum, [, count]) => sum + count, 0);
+    const statBadges = primaryCounts.map(([action, count]) => {
+      return `<span class="badge" title="${escapeHtml(action)}: ${count}">${escapeHtml(truncateText(action, 24))}: ${count}</span>`;
     }).join("");
+    const overflowBadge = overflowCount > 0 ? `<span class="badge" title="其余动作共 ${overflowCount} 条">其他：${overflowCount}</span>` : "";
     elements.adminAuditSummary.innerHTML = `
-      <span class="badge">总计: ${state.admin.totalLogs}</span>
+      <span class="badge">总计：${state.admin.totalLogs}</span>
       ${statBadges || `<span class="helper">暂无统计</span>`}
+      ${overflowBadge}
     `;
   }
 
   if (elements.adminPageIndicator) {
     const totalPages = Math.max(1, Math.ceil(state.admin.totalUsers / state.admin.pageSize));
-    elements.adminPageIndicator.textContent = `第 ${state.admin.page} / ${totalPages} 页 · 共 ${state.admin.totalUsers} 人`;
+    const pageLabel = `第 ${state.admin.page} / ${totalPages} 页 · 共 ${state.admin.totalUsers} 人`;
+    elements.adminPageIndicator.textContent = pageLabel;
+    elements.adminPageIndicator.title = pageLabel;
     elements.adminPrevPage.disabled = state.admin.page <= 1;
     elements.adminNextPage.disabled = state.admin.page >= totalPages;
   }
 
   if (elements.adminAuditPageIndicator) {
     const totalPages = Math.max(1, Math.ceil(state.admin.totalLogs / state.admin.auditPageSize));
-    elements.adminAuditPageIndicator.textContent = `第 ${state.admin.auditPage} / ${totalPages} 页 · 共 ${state.admin.totalLogs} 条`;
+    const auditPageLabel = `第 ${state.admin.auditPage} / ${totalPages} 页 · 共 ${state.admin.totalLogs} 条`;
+    elements.adminAuditPageIndicator.textContent = auditPageLabel;
+    elements.adminAuditPageIndicator.title = auditPageLabel;
     elements.adminAuditPrevPage.disabled = state.admin.auditPage <= 1;
     elements.adminAuditNextPage.disabled = state.admin.auditPage >= totalPages;
   }
 
+  if (elements.adminOverviewUsers) {
+    elements.adminOverviewUsers.textContent = String(state.admin.totalUsers || 0);
+  }
+  if (elements.adminOverviewLogs) {
+    elements.adminOverviewLogs.textContent = String(state.admin.totalLogs || 0);
+  }
+  if (elements.adminOverviewSelected) {
+    const selected = state.admin.users.find((user) => user.id === state.admin.selectedUserId);
+    const selectedLabel = selected ? (selected.display_name || selected.username) : "未选择";
+    elements.adminOverviewSelected.textContent = truncateText(selectedLabel, 24);
+    elements.adminOverviewSelected.title = selectedLabel;
+  }
+
   renderAdminUserDetail();
+  elements.adminUsersList.querySelector('[data-admin-empty-action="focus-create-user"]')?.addEventListener("click", () => {
+    elements.adminCreateEmail?.focus();
+    elements.adminCreateEmail?.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
 }
 
 function renderAdminUserDetail() {
@@ -3427,7 +3901,42 @@ function renderAdminUserDetail() {
   const logs = detail.recent_logs || [];
   const projects = detail.projects?.recent || [];
   const activity = detail.activity || {};
+  const recentUa = activity.last_active_ua || activity.last_login_ua || "-";
+  const passwordResetSection = user.auth_provider === "local" ? `
+    <div class="admin-danger-zone">
+      <div class="admin-danger-copy">
+        <strong>重置本地密码</strong>
+        <p class="helper">为这个账号设置一个新密码，用户下次登录即可使用。</p>
+      </div>
+      <div class="admin-inline-password">
+        <input type="password" class="input" data-admin-reset-password data-password-text placeholder="至少 6 位新密码" minlength="6">
+        <button type="button" class="button button-ghost button-small password-toggle" data-password-toggle>显示</button>
+        <button type="button" class="button button-secondary" data-admin-detail-action="reset-password" data-admin-user-id="${escapeHtml(user.id)}">更新密码</button>
+      </div>
+    </div>
+  ` : `
+    <div class="admin-danger-zone">
+      <div class="admin-danger-copy">
+        <strong>密码不在此处管理</strong>
+        <p class="helper">这个账号来自外部认证源，密码应在对应的身份系统中维护。</p>
+      </div>
+    </div>
+  `;
   elements.adminUserDetail.innerHTML = `
+    <div class="admin-user-summary-grid">
+      <article class="admin-summary-tile">
+        <span class="admin-summary-label">账号状态</span>
+        <strong>${user.is_active ? "启用中" : "已禁用"}</strong>
+      </article>
+      <article class="admin-summary-tile">
+        <span class="admin-summary-label">最近活跃</span>
+        <strong>${escapeHtml(activity.last_active_at || "-")}</strong>
+      </article>
+      <article class="admin-summary-tile">
+        <span class="admin-summary-label">项目数</span>
+        <strong>${detail.projects?.count ?? 0}</strong>
+      </article>
+    </div>
     <div class="pm-detail-section">
       <h4>基本信息</h4>
       <div class="pm-detail-grid">
@@ -3463,6 +3972,10 @@ function renderAdminUserDetail() {
           <span class="pm-detail-item-label">Subject</span>
           <span class="pm-detail-item-value">${escapeHtml(user.subject || "-")}</span>
         </div>
+        <div class="pm-detail-item">
+          <span class="pm-detail-item-label">本地密码</span>
+          <span class="pm-detail-item-value">${user.has_password ? "已设置" : "未设置"}</span>
+        </div>
       </div>
     </div>
     <div class="pm-detail-section">
@@ -3482,9 +3995,27 @@ function renderAdminUserDetail() {
         </div>
         <div class="pm-detail-item">
           <span class="pm-detail-item-label">最近 UA</span>
-          <span class="pm-detail-item-value">${escapeHtml(activity.last_active_ua || activity.last_login_ua || "-")}</span>
+          <span class="pm-detail-item-value" title="${escapeHtml(recentUa)}">${escapeHtml(truncateText(recentUa, 120))}</span>
         </div>
       </div>
+    </div>
+    <div class="pm-detail-section">
+      <h4>高风险操作</h4>
+      <div class="admin-danger-zone">
+        <div class="admin-danger-copy">
+          <strong>${user.is_active ? "禁用账号" : "启用账号"}</strong>
+          <p class="helper">变更该用户的登录可用性，会直接影响后续访问。</p>
+        </div>
+        <button type="button" class="button ${user.is_active ? "button-danger" : "button-secondary"}" data-admin-detail-action="toggle-active" data-admin-user-id="${escapeHtml(user.id)}">${user.is_active ? "禁用用户" : "启用用户"}</button>
+      </div>
+      <div class="admin-danger-zone">
+        <div class="admin-danger-copy">
+          <strong>强制下线</strong>
+          <p class="helper">清空该用户当前会话，要求其重新登录。</p>
+        </div>
+        <button type="button" class="button button-danger" data-admin-detail-action="purge-sessions" data-admin-user-id="${escapeHtml(user.id)}">强制下线</button>
+      </div>
+      ${passwordResetSection}
     </div>
     <div class="pm-detail-section">
       <h4>项目</h4>
@@ -3496,10 +4027,10 @@ function renderAdminUserDetail() {
         <div class="pm-file-list">
           ${projects.map((project) => `
             <div class="pm-file-item">
-              <span class="pm-file-icon svg-icon">PJ</span>
-              <span class="pm-file-name">${escapeHtml(project.name)}</span>
-              <span class="badge">${escapeHtml(project.status)}</span>
-              <span class="helper">${escapeHtml(project.updated_at)}</span>
+              <span class="pm-file-icon svg-icon">项</span>
+              <span class="pm-file-name" title="${escapeHtml(project.name)}">${escapeHtml(project.name)}</span>
+              <span class="badge" title="${escapeHtml(project.status)}">${escapeHtml(project.status)}</span>
+              <span class="helper" title="${escapeHtml(project.updated_at)}">${escapeHtml(project.updated_at)}</span>
             </div>
           `).join("")}
         </div>
@@ -3507,9 +4038,26 @@ function renderAdminUserDetail() {
     </div>
     <div class="pm-detail-section">
       <h4>最近审计</h4>
-      <pre class="status-log">${logs.map((log) => `[${log.created_at}] ${log.action} ${log.resource_type}:${log.resource_id || "-"} ${JSON.stringify(log.details || {})}`).join("\n") || "暂无记录"}</pre>
+      <div class="admin-recent-log-list">
+        ${logs.length ? logs.map((log) => {
+          const detailText = JSON.stringify(log.details || {});
+          const compactDetail = truncateText(detailText, 220);
+          return `
+          <article class="admin-recent-log-item">
+            <div class="admin-recent-log-top">
+              <strong>${escapeHtml(log.action)}</strong>
+              <span class="helper">${escapeHtml(log.created_at)}</span>
+            </div>
+            <p class="helper">${escapeHtml(log.resource_type)}:${escapeHtml(log.resource_id || "-")}</p>
+            <p class="admin-recent-log-detail" title="${escapeHtml(detailText)}">${escapeHtml(compactDetail)}</p>
+          </article>
+        `;
+        }).join("") : `<p class="helper">暂无记录</p>`}
+      </div>
     </div>
   `;
+  setupPasswordToggles(elements.adminUserDetail);
+  setupInlineValidation(elements.adminUserDetail);
 }
 
 async function handleAdminUsersListClick(event) {
@@ -3538,61 +4086,99 @@ async function handleAdminUsersListClick(event) {
     if (action === "toggle-active") {
       if (!user) return;
       const nextActive = !user.is_active;
-      const confirmText = nextActive ? "确认启用该用户？" : "确认禁用该用户？";
+      const confirmText = nextActive ? "确认恢复这个账号的登录权限吗？" : "确认暂停这个账号的登录权限吗？";
       if (!window.confirm(confirmText)) return;
       await updateAdminUser(userId, { is_active: nextActive });
-      showFlash(nextActive ? "用户已启用" : "用户已禁用");
+      showFlash(nextActive ? "账号已恢复可登录状态。" : "账号已暂停登录。");
       return;
     }
     if (action === "purge-sessions") {
-      if (!window.confirm("确认强制该用户下线？")) return;
+      if (!window.confirm("确认让这个账号立即重新登录吗？")) return;
       await purgeUserSessions(userId);
-      showFlash("已强制用户下线");
+      showFlash("该账号已被强制退出。");
       return;
     }
     if (action === "save") {
       const role = card.querySelector("[data-admin-role]")?.value || "user";
       const groupsValue = card.querySelector("[data-admin-groups]")?.value || "";
       await updateAdminUser(userId, { role, groups: parseGroups(groupsValue) });
-      showFlash("用户信息已更新");
+      showFlash("账号信息已更新。");
     }
   } catch (error) {
     showFlash(error.message, "error");
   }
 }
 
-async function openAdminPanel() {
+async function handleAdminUserDetailClick(event) {
+  const button = event.target.closest("button[data-admin-detail-action]");
+  if (!button) return;
+  const userId = button.dataset.adminUserId;
+  const action = button.dataset.adminDetailAction;
+  if (!userId || !action) return;
+
+  const user = state.admin.userDetail?.user;
   try {
-    setBusy(true);
-    state.admin.selectedUserId = null;
-    state.admin.page = 1;
-    state.admin.auditPage = 1;
-    state.admin.userDetail = null;
-    await loadAdminData();
-    if (state.admin.users.length > 0) {
-      state.admin.selectedUserId = state.admin.users[0].id;
-      await loadAdminUserDetail(state.admin.selectedUserId);
-      state.admin.auditPage = 1;
-      await loadAdminData();
+    if (action === "toggle-active") {
+      const nextActive = !(user?.is_active);
+      const confirmText = nextActive ? "确认恢复这个账号的登录权限吗？" : "确认暂停这个账号的登录权限吗？";
+      if (!window.confirm(confirmText)) return;
+      await updateAdminUser(userId, { is_active: nextActive });
+      showFlash(nextActive ? "账号已恢复可登录状态。" : "账号已暂停登录。");
+      return;
     }
-    renderAdminPanel();
-    state.admin.isOpen = true;
-    elements.adminPanelModal?.classList.remove("hidden");
-    document.body.classList.add("modal-open");
-    trapFocus(elements.adminPanelModal);
+    if (action === "purge-sessions") {
+      if (!window.confirm("确认让这个账号立即重新登录吗？")) return;
+      await purgeUserSessions(userId);
+      showFlash("该账号已被强制退出。");
+      return;
+    }
+    if (action === "reset-password") {
+      const container = button.closest(".admin-inline-password");
+      const passwordInput = container?.querySelector("[data-admin-reset-password]");
+      const nextPassword = passwordInput?.value?.trim() || "";
+      if (nextPassword.length < 6) {
+        showFlash("新密码至少需要 6 位。", "error");
+        passwordInput?.focus();
+        return;
+      }
+      await updateAdminUser(userId, { password: nextPassword });
+      if (passwordInput) {
+        passwordInput.value = "";
+      }
+      showFlash("密码已更新。");
+    }
   } catch (error) {
     showFlash(error.message, "error");
-    appendLog("加载用户管理失败", error.message);
-  } finally {
-    setBusy(false);
   }
 }
 
-function closeAdminPanel() {
-  state.admin.isOpen = false;
-  elements.adminPanelModal?.classList.add("hidden");
-  releaseFocus();
-  document.body.classList.remove("modal-open");
+async function handleAdminCreateUserSubmit(event) {
+  event.preventDefault();
+  const email = elements.adminCreateEmail?.value?.trim() || "";
+  const displayName = elements.adminCreateDisplayName?.value?.trim() || "";
+  const password = elements.adminCreatePassword?.value || "";
+  const role = elements.adminCreateRole?.value || "user";
+
+  if (!email || !email.includes("@")) {
+    showFlash("请填写有效邮箱地址。", "error");
+    elements.adminCreateEmail?.focus();
+    return;
+  }
+  if (password.length < 6) {
+    showFlash("初始密码至少需要 6 位。", "error");
+    elements.adminCreatePassword?.focus();
+    return;
+  }
+
+  try {
+    await createAdminUser({ email, display_name: displayName, password, role });
+    if (elements.adminCreateUserForm) {
+      elements.adminCreateUserForm.reset();
+    }
+    showFlash("本地账号已创建。");
+  } catch (error) {
+    showFlash(error.message, "error");
+  }
 }
 
 async function loadImageModelConfig() {
@@ -3624,7 +4210,7 @@ async function loadTemplates() {
     state.templates = data.templates || [];
     state.templateCategories = data.categories || {};
   } catch (error) {
-    showFlash(`加载模板列表失败: ${error.message}`, "error");
+    showFlash(`模板列表加载失败，请稍后重试：${error.message}`, "error");
     appendLog("加载模板列表失败", error.message);
   } finally {
     state.templatesLoading = false;
@@ -3634,7 +4220,7 @@ async function loadTemplates() {
 
 async function applyTemplate(projectName, templateId) {
   if (!templateId) {
-    showFlash("请先选择一个模板", "error");
+    showFlash("请先选一个模板，再继续。", "error");
     return;
   }
 
@@ -3649,7 +4235,7 @@ async function applyTemplate(projectName, templateId) {
     });
 
     appendLog("模板应用成功", `${(data.copied_files || []).length} 个文件`);
-    showFlash(`已应用模板: ${templateId}`);
+    showFlash("模板已应用，正在进入下一步。");
 
     // Refresh project state
     await loadDashboard();
@@ -3668,13 +4254,13 @@ async function applyTemplate(projectName, templateId) {
 
 async function analyzeProject() {
   if (!state.selectedProject) {
-    showFlash("请先选择项目", "error");
+    showFlash("请先选择一个项目。", "error");
     return;
   }
 
   const activeProfile = getActiveProfile();
   if (!activeProfile?.configured) {
-    showFlash("请先配置大模型", "error");
+    showFlash("请先连接一个可用的文字模型。", "error");
     return;
   }
 
@@ -3690,8 +4276,8 @@ async function analyzeProject() {
     });
 
     state.strategistAnalysis = data.recommendations;
-    appendLog("分析完成", `使用模型: ${data.recommendations?.model_used || "unknown"}`);
-    showFlash("分析完成，请确认八项建议");
+    appendLog("分析完成", `使用模型：${data.recommendations?.model_used || "未识别"}`);
+    showFlash("方案建议已生成，请确认并保存。");
 
     // Initialize eightConfirmations with recommendations
     if (data.recommendations) {
@@ -3761,8 +4347,8 @@ async function saveDesignSpec(event) {
       body: JSON.stringify({ spec }),
     });
 
-    appendLog("设计规范已保存", `design_spec.md`);
-    showFlash("设计规范已保存");
+    appendLog("方案说明已保存", "方案说明文件已更新");
+    showFlash("方案说明已保存。");
 
     // Refresh and move to next step
     await loadDashboard();
@@ -3880,7 +4466,7 @@ async function createProject(event) {
       body: JSON.stringify(payload),
     });
     appendLog("项目创建成功", data.project?.name || "");
-    showFlash(`已创建项目 ${data.project.name}`);
+    showFlash(`项目“${data.project.name}”已创建。`);
     await loadDashboard({ preserveSelection: false });
     state.selectedProject = data.project;
     moveToRecommendedStep();
@@ -3896,7 +4482,7 @@ async function createProject(event) {
 async function importSources(event) {
   event.preventDefault();
   if (!state.selectedProject) {
-    showFlash("先选择项目", "error");
+    showFlash("请先选择一个项目。", "error");
     return;
   }
 
@@ -3913,7 +4499,7 @@ async function importSources(event) {
   };
 
   if (payload.sources.length === 0 && !payload.pasted_content.trim()) {
-    showFlash("填入来源列表，或者直接粘贴正文", "error");
+    showFlash("请添加文件、链接，或直接粘贴文字内容。", "error");
     return;
   }
 
@@ -3925,7 +4511,7 @@ async function importSources(event) {
       body: JSON.stringify(payload),
     });
     appendLog("导入完成", `${data.summary?.imported_count ?? ""} 个文件`);
-    showFlash(`已导入到 ${state.selectedProject.name}`);
+    showFlash(`内容已加入项目“${state.selectedProject.name}”。`);
     state.selectedProject = data.project;
     moveToRecommendedStep();
     await loadDashboard();
@@ -3952,7 +4538,7 @@ async function validateProject(projectName) {
       result: data.validation,
     };
     appendLog(`校验完成 ${projectName}`, `valid=${data.validation?.is_valid}, errors=${data.validation?.errors?.length || 0}`);
-    showFlash(data.validation.is_valid ? "校验通过" : "校验发现问题", data.validation.is_valid ? "success" : "error");
+    showFlash(data.validation.is_valid ? "项目检查通过。" : "项目检查发现了一些问题。", data.validation.is_valid ? "success" : "error");
     await loadDashboard();
     renderAll();
   } catch (error) {
@@ -3979,7 +4565,7 @@ async function saveModelConfig(event) {
   event.preventDefault();
   const profile = getDraftPayload();
   if (!profile.name) {
-    showFlash("配置名称不能为空", "error");
+    showFlash("请先填写一个配置名称。", "error");
     return;
   }
 
@@ -3997,10 +4583,10 @@ async function saveModelConfig(event) {
     state.modelConfig = data.model_config || createEmptyModelConfig();
     setModalDraft(pickEditableProfile(data.profile?.id || state.modelConfig.selected_profile_id), {
       fetchedModels: state.modal.fetchedModels,
-      fetchMessage: "配置已保存。默认使用当前所选 profile。",
+      fetchMessage: "配置已保存，系统会默认使用当前选中的模型设置。",
     });
     appendLog("模型配置已保存", data.model_config?.active_profile?.name || "");
-    showFlash("模型配置已保存");
+    showFlash("模型设置已保存。");
     state.activeStepId = state.selectedProject ? "executor" : state.activeStepId;
     renderAll();
     renderModelConfigModal();
@@ -4029,7 +4615,7 @@ async function selectModelProfile(profileId, options = {}) {
     });
     state.modelConfig = data.model_config || createEmptyModelConfig();
     if (!options.quiet) {
-      showFlash("已切换当前模型配置");
+      showFlash("当前模型已切换。");
     }
     renderAll();
     renderModelConfigModal();
@@ -4043,6 +4629,11 @@ async function selectModelProfile(profileId, options = {}) {
 
 async function deleteModelProfile(profileId) {
   if (!profileId) {
+    return;
+  }
+  const profile = getProfiles().find((item) => item.id === profileId);
+  const profileLabel = profile?.name || "这条设置";
+  if (!window.confirm(`确认删除“${profileLabel}”吗？删除后将无法恢复。`)) {
     return;
   }
 
@@ -4059,7 +4650,7 @@ async function deleteModelProfile(profileId) {
     state.modelConfig = data.model_config || createEmptyModelConfig();
     setModalDraft(pickEditableProfile());
     appendLog("模型配置已删除", profileId);
-    showFlash("模型配置已删除");
+    showFlash("这条模型设置已删除。");
     renderAll();
     renderModelConfigModal();
   } catch (error) {
@@ -4080,11 +4671,11 @@ async function fetchRemoteModels() {
   };
 
   if (!payload.api_key && !state.modal.draft.api_key_masked) {
-    showFlash("先提供 API Key 再获取模型列表", "error");
+    showFlash("请先填写访问密钥，再获取模型列表。", "error");
     return;
   }
   if (!payload.api_key) {
-    showFlash("编辑已有配置时，重新获取模型列表需要再次输入 API Key", "error");
+    showFlash("要重新获取模型列表，请重新输入访问密钥。", "error");
     return;
   }
 
@@ -4101,8 +4692,8 @@ async function fetchRemoteModels() {
     }
     state.modal.fetchError = false;
     state.modal.fetchMessage = state.modal.fetchedModels.length > 0
-      ? `已获取 ${state.modal.fetchedModels.length} 个模型 ID。`
-      : "接口可访问，但没有返回可选模型。";
+      ? `已获取 ${state.modal.fetchedModels.length} 个可选模型。`
+      : "接口可以访问，但暂时没有返回可选模型。";
     renderModelConfigModal();
   } catch (error) {
     state.modal.fetchError = true;
@@ -4120,7 +4711,7 @@ async function testModelConfig() {
   const profile = getDraftPayload();
 
   if (!profile.api_key && !state.modal.draft.api_key_masked) {
-    showFlash("先提供 API Key 再测试模型", "error");
+    showFlash("请先填写访问密钥，再测试模型。", "error");
     return;
   }
 
@@ -4143,7 +4734,7 @@ async function testModelConfig() {
     state.modal.testOutput = result.preview || "";
     renderModelConfigModal();
 
-    showFlash("模型测试成功");
+    showFlash("模型连接测试成功。");
     appendLog("模型测试成功", result?.model || "ok");
   } catch (error) {
     state.modal.testError = true;
@@ -4167,8 +4758,8 @@ async function runStep(projectName, stepId) {
       body: JSON.stringify({}),
     });
     const output = [data.command.join(" "), data.stdout, data.stderr].filter(Boolean).join("\n\n");
-    appendLog(`步骤完成 ${data.step.label}`, output || "No output");
-    showFlash(`${data.step.label} 执行完成`);
+    appendLog(`步骤完成 ${data.step.label}`, output || "已完成");
+    showFlash(`${data.step.label} 已完成。`);
     state.selectedProject = data.project;
     moveToRecommendedStep();
     await loadDashboard();
@@ -4185,7 +4776,7 @@ async function runStep(projectName, stepId) {
 async function generateNotes(projectName) {
   const activeProfile = getActiveProfile();
   if (!activeProfile) {
-    showFlash("先配置并选中一个模型 profile", "error");
+    showFlash("请先选好一个可用的文字模型。", "error");
     return;
   }
 
@@ -4199,8 +4790,8 @@ async function generateNotes(projectName) {
       }),
     });
     const output = [data.command.join(" "), data.stdout, data.stderr].filter(Boolean).join("\n\n");
-    appendLog(`notes/total.md 生成完成 (${activeProfile.name})`, output || "No output");
-    showFlash("已生成 notes/total.md");
+    appendLog(`讲稿总表已生成（${activeProfile.name}）`, output || "已完成");
+    showFlash("讲稿总表已生成。");
     state.selectedProject = data.project;
     moveToRecommendedStep();
     await loadDashboard();
@@ -4208,7 +4799,7 @@ async function generateNotes(projectName) {
   } catch (error) {
     const detail = error.message;
     showFlash(error.message, "error");
-    appendLog("notes/total.md 生成失败", detail);
+    appendLog("讲稿总表生成失败", detail);
   } finally {
     setBusy(false);
   }
@@ -4217,12 +4808,12 @@ async function generateNotes(projectName) {
 async function generateSvg(projectName) {
   const activeProfile = getActiveProfile();
   if (!activeProfile) {
-    showFlash("先配置并选中一个模型 profile", "error");
+    showFlash("请先选好一个可用的文字模型。", "error");
     return;
   }
 
   if (state.svgGeneration.inProgress) {
-    showFlash("SVG 正在生成中，请等待完成", "error");
+    showFlash("页面正在生成中，请先等待当前任务完成。", "error");
     return;
   }
 
@@ -4234,7 +4825,7 @@ async function generateSvg(projectName) {
     currentPage: 0,
     currentTitle: "",
     errors: [],
-    log: ["开始生成 SVG 页面..."],
+    log: ["开始生成页面文件..."],
     mode: "generate",
   };
 
@@ -4258,9 +4849,9 @@ async function generateSvg(projectName) {
       const msg = errorData.error || errorData.detail || `HTTP ${response.status}`;
       if (response.status === 409) {
         state.svgGeneration.inProgress = true;
-        state.svgGeneration.log = ["后端有任务正在运行，请等待完成后重试"];
-        showFlash("该项目有任务正在运行，请稍候", "error");
-        appendLog("SVG 生成冲突", msg);
+        state.svgGeneration.log = ["后台当前还有任务正在执行，请等待完成后再试"];
+        showFlash("这个项目当前还有任务在运行，请稍后再试。", "error");
+        appendLog("页面生成冲突", msg);
         renderAll();
         return;
       }
@@ -4316,8 +4907,8 @@ async function generateSvg(projectName) {
   } catch (error) {
     state.svgGeneration.inProgress = false;
     state.svgGeneration.log.push(`错误: ${error.message}`);
-    showFlash(`SVG 生成失败: ${error.message}`, "error");
-    appendLog("SVG 生成失败", error.message);
+    showFlash(`页面生成失败：${error.message}`, "error");
+    appendLog("页面生成失败", error.message);
   } finally {
     state.svgGeneration.inProgress = false;
     await loadDashboard();
@@ -4333,16 +4924,16 @@ async function generateSvg(projectName) {
 async function regenerateAllSvg(projectName) {
   const activeProfile = getActiveProfile();
   if (!activeProfile) {
-    showFlash("先配置并选中一个模型 profile", "error");
+    showFlash("请先选好一个可用的文字模型。", "error");
     return;
   }
 
   if (state.svgGeneration.inProgress) {
-    showFlash("SVG 正在生成中，请等待完成", "error");
+    showFlash("页面正在生成中，请先等待当前任务完成。", "error");
     return;
   }
 
-  if (!confirm("确定要重新生成所有 SVG 页面吗？现有的 SVG 文件将被覆盖。")) {
+  if (!confirm("确定要重新生成全部页面吗？现有页面内容会被覆盖。")) {
     return;
   }
 
@@ -4354,7 +4945,7 @@ async function regenerateAllSvg(projectName) {
     currentPage: 0,
     currentTitle: "",
     errors: [],
-    log: ["开始重新生成所有 SVG 页面..."],
+    log: ["开始重新生成全部页面文件..."],
     mode: "regenerate",
   };
 
@@ -4379,8 +4970,8 @@ async function regenerateAllSvg(projectName) {
       const msg = errorData.error || errorData.detail || `HTTP ${response.status}`;
       if (response.status === 409) {
         state.svgGeneration.inProgress = true;
-        state.svgGeneration.log = ["后端有任务正在运行，请等待完成后重试"];
-        showFlash("该项目有任务正在运行，请稍候", "error");
+        state.svgGeneration.log = ["后台当前还有任务正在执行，请等待完成后再试"];
+        showFlash("这个项目当前还有任务在运行，请稍后再试。", "error");
         appendLog("重新生成冲突", msg);
         renderAll();
         return;
@@ -4437,7 +5028,7 @@ async function regenerateAllSvg(projectName) {
   } catch (error) {
     state.svgGeneration.inProgress = false;
     state.svgGeneration.log.push(`错误: ${error.message}`);
-    showFlash(`重新生成失败: ${error.message}`, "error");
+    showFlash(`重新生成失败：${error.message}`, "error");
     appendLog("重新生成失败", error.message);
   } finally {
     state.svgGeneration.inProgress = false;
@@ -4451,7 +5042,7 @@ async function regenerateAllSvg(projectName) {
     }
   }
 }async function deleteAllSvg(projectName) {
-  if (!confirm("确定要删除所有 SVG 文件吗？这将同时删除 svg_output/ 和 svg_final/ 中的所有 SVG 文件，以及相关的讲稿文件。")) {
+  if (!confirm("确定要删除当前项目的全部页面文件和相关讲稿吗？此操作不可撤销。")) {
     return;
   }
 
@@ -4464,8 +5055,8 @@ async function regenerateAllSvg(projectName) {
         delete_all: true,
       }),
     });
-    appendLog("已删除 SVG 文件", `共 ${data.deleted_files?.length || 0} 个文件`);
-    showFlash(`已删除 ${data.deleted_files?.length || 0} 个 SVG 文件`);
+    appendLog("已删除页面文件", `共 ${data.deleted_files?.length || 0} 个文件`);
+    showFlash(`已删除 ${data.deleted_files?.length || 0} 个页面文件。`);
     state.selectedProject = data.project;
     await loadDashboard();
     renderAll();
@@ -4482,11 +5073,11 @@ function handleSseEvent(eventType, data) {
   switch (eventType) {
     case "start":
       state.svgGeneration.totalPages = data.total_pages || 0;
-      state.svgGeneration.log.push(`模型: ${data.model || "unknown"} (${data.backend || "unknown"})`);
+      state.svgGeneration.log.push(`当前模型：${data.model || "未识别"}（${data.backend || "未识别"}）`);
       if (data.regenerate) {
-        state.svgGeneration.log.push(`共 ${data.total_pages} 页待重新生成`);
+        state.svgGeneration.log.push(`共 ${data.total_pages} 页等待重新生成`);
       } else {
-        state.svgGeneration.log.push(`共 ${data.total_pages} 页待生成`);
+        state.svgGeneration.log.push(`共 ${data.total_pages} 页等待生成`);
       }
       break;
 
@@ -4501,7 +5092,7 @@ function handleSseEvent(eventType, data) {
       break;
 
     case "page_error":
-      state.svgGeneration.errors.push(data.error || "Unknown error");
+      state.svgGeneration.errors.push(data.error || "未知错误");
       state.svgGeneration.log.push(`✗ 页面 ${data.page_number} 失败: ${data.error}`);
       break;
 
@@ -4511,15 +5102,15 @@ function handleSseEvent(eventType, data) {
       if (data.errors && data.errors.length > 0) {
         state.svgGeneration.log.push(`错误: ${data.errors.length} 页`);
       }
-      showFlash(`SVG ${isRegenerate ? "重新生成" : "生成"}完成: ${data.generated}/${data.total_pages} 页`);
-      appendLog(`SVG ${isRegenerate ? "重新生成" : "生成"}完成`, `${state.svgGeneration.generatedPages} 页`);
+      showFlash(`页面${isRegenerate ? "重新生成" : "生成"}完成：${data.generated}/${data.total_pages} 页。`);
+      appendLog(`页面${isRegenerate ? "重新生成" : "生成"}完成`, `${state.svgGeneration.generatedPages} 页`);
       if (data.project) {
         state.selectedProject = data.project;
       }
       break;
 
     default:
-      console.log("Unknown SSE event:", eventType, data);
+      break;
   }
 
   // Re-render: only update executor stage if user is on it; always update context
@@ -4534,7 +5125,7 @@ function handleSseEvent(eventType, data) {
 async function generateImage(projectName) {
   const activeProfile = state.imageModelConfig?.active_profile;
   if (!activeProfile) {
-    showFlash("先配置并选中一个图片生成模型", "error");
+    showFlash("请先选好一个可用的图片模型。", "error");
     return;
   }
 
@@ -4545,7 +5136,7 @@ async function generateImage(projectName) {
 
   const prompt = (promptInput?.value || "").trim();
   if (!prompt) {
-    showFlash("请输入图片描述", "error");
+    showFlash("请先输入图片描述。", "error");
     return;
   }
 
@@ -4576,7 +5167,7 @@ async function generateImage(projectName) {
     state.imageGeneration.lastResult = data.image;
     state.imageGeneration.prompt = "";
     state.imageGeneration.filename = "";
-    showFlash(`图片生成成功: ${data.image.filename}`);
+    showFlash(`图片已生成：${data.image.filename}`);
     appendLog("图片生成成功", data.image?.filename || prompt);
     if (data.project) {
       state.selectedProject = data.project;
@@ -4585,7 +5176,7 @@ async function generateImage(projectName) {
   } catch (error) {
     state.imageGeneration.inProgress = false;
     state.imageGeneration.error = error.message;
-    showFlash(`图片生成失败: ${error.message}`, "error");
+    showFlash(`图片生成失败：${error.message}`, "error");
     appendLog("图片生成失败", error.message);
   } finally {
     renderAll();
@@ -4595,13 +5186,13 @@ async function generateImage(projectName) {
 async function generateSingleImageFromResource(projectName, imgResource, idx) {
   const activeProfile = state.imageModelConfig?.active_profile;
   if (!activeProfile) {
-    showFlash("先配置并选中一个图片生成模型", "error");
+    showFlash("请先选好一个可用的图片模型。", "error");
     return;
   }
 
   const prompt = imgResource.description || "";
   if (!prompt) {
-    showFlash(`图片 ${imgResource.filename} 没有描述信息`, "error");
+    showFlash(`图片“${imgResource.filename}”还没有可用描述。`, "error");
     return;
   }
 
@@ -4628,7 +5219,7 @@ async function generateSingleImageFromResource(projectName, imgResource, idx) {
     state.imageGeneration.inProgress = false;
     state.imageGeneration.lastResult = data.image;
     state.imageGeneration.status = "";
-    showFlash(`图片生成成功: ${data.image.filename}`);
+    showFlash(`图片已生成：${data.image.filename}`);
     appendLog("图片生成成功", imgResource.filename);
     if (data.project) {
       state.selectedProject = data.project;
@@ -4638,7 +5229,7 @@ async function generateSingleImageFromResource(projectName, imgResource, idx) {
     state.imageGeneration.inProgress = false;
     state.imageGeneration.error = error.message;
     state.imageGeneration.status = "";
-    showFlash(`图片生成失败: ${error.message}`, "error");
+    showFlash(`图片生成失败：${error.message}`, "error");
     appendLog("图片生成失败", `${imgResource.filename}: ${error.message}`);
   } finally {
     renderAll();
@@ -4648,7 +5239,7 @@ async function generateSingleImageFromResource(projectName, imgResource, idx) {
 async function generateAllPendingImages(projectName) {
   const activeProfile = state.imageModelConfig?.active_profile;
   if (!activeProfile) {
-    showFlash("先配置并选中一个图片生成模型", "error");
+    showFlash("请先选好一个可用的图片模型。", "error");
     return;
   }
 
@@ -4656,7 +5247,7 @@ async function generateAllPendingImages(projectName) {
   const pendingImages = imageResources.filter((img) => img.status === "pending");
 
   if (pendingImages.length === 0) {
-    showFlash("没有待生成的图片", "info");
+    showFlash("当前没有需要生成的图片。", "info");
     return;
   }
 
@@ -4712,9 +5303,9 @@ async function generateAllPendingImages(projectName) {
   state.imageGeneration.status = "";
 
   if (failCount === 0) {
-    showFlash(`批量生成完成: ${successCount} 张图片全部成功`);
+    showFlash(`批量生成完成，${successCount} 张图片都已生成。`);
   } else {
-    showFlash(`批量生成完成: ${successCount} 成功, ${failCount} 失败`, failCount > 0 ? "error" : "info");
+    showFlash(`批量生成结束：${successCount} 张成功，${failCount} 张失败。`, failCount > 0 ? "error" : "info");
   }
 
   await loadDashboard();
@@ -4759,7 +5350,7 @@ function handleProfileListClick(event) {
 
 function beginNewProfile() {
   setModalDraft(null, {
-    fetchMessage: "新 profile 默认用下拉选择模型，也可以手动输入。",
+    fetchMessage: "新配置默认可从下拉列表选模型，也可以手动输入。",
   });
   renderModelConfigModal();
 }
@@ -4786,7 +5377,7 @@ async function openTemplateManagerModal() {
     state.templateManager.templates = data.templates || [];
     state.templateManager.categories = data.categories || {};
   } catch (error) {
-    showFlash("加载模板列表失败: " + error.message, "error");
+    showFlash("模板列表加载失败，请稍后重试：" + error.message, "error");
   }
   renderTemplateManagerList();
   renderTemplateManagerDetail();
@@ -4855,14 +5446,14 @@ function renderTemplateManagerDetail() {
     elements.tmTemplateDetail.innerHTML = `
       <div class="stack">
         <div class="section-head">
-          <p class="section-kicker">Upload</p>
+          <p class="section-kicker">上传模板</p>
           <h2>上传新模板</h2>
         </div>
         <form id="tmUploadForm" class="stack">
           <div class="two-col">
             <label class="field">
-              <span>模板 ID（目录名）</span>
-              <input type="text" name="name" placeholder="如 my_template" required>
+              <span>模板标识（用于保存）</span>
+              <input type="text" name="name" placeholder="如 annual_pitch" required>
             </label>
             <label class="field">
               <span>显示名称</span>
@@ -4891,8 +5482,8 @@ function renderTemplateManagerDetail() {
           </div>
           <div class="upload-dropzone" id="tmDropzone">
             <p class="upload-dropzone-label">点击选择或拖拽文件到此处</p>
-            <p class="helper">需要至少 1 个 SVG 文件，建议包含 design_spec.md</p>
-            <input type="file" id="tmFileInput" multiple accept=".svg,.md,.png,.jpg,.jpeg" style="display:none;">
+            <p class="helper">至少上传 1 个页面文件，建议同时附上方案说明文件。</p>
+            <input type="file" id="tmFileInput" class="visually-hidden" multiple accept=".svg,.md,.png,.jpg,.jpeg">
           </div>
           <div id="tmFileList" class="upload-file-list"></div>
           <div class="action-row">
@@ -4908,7 +5499,7 @@ function renderTemplateManagerDetail() {
 
   const t = tm.selectedTemplate;
   if (!t) {
-    elements.tmTemplateDetail.innerHTML = `<p class="helper">选择左侧模板查看详情，或点击下方上传新模板。</p>`;
+    elements.tmTemplateDetail.innerHTML = `<p class="helper">先从左侧选一个模板查看详情，或直接上传一个新模板。</p>`;
     return;
   }
 
@@ -4916,8 +5507,8 @@ function renderTemplateManagerDetail() {
   if (tm.deleteConfirm === t.id) {
     elements.tmTemplateDetail.innerHTML = `
       <div class="pm-delete-confirm">
-        <h4>确认删除模板？</h4>
-        <p>模板 <strong>${escapeHtml(t.label)}</strong>（${escapeHtml(t.id)}）将被永久删除。</p>
+        <h4>确认删除这个模板？</h4>
+        <p>模板 <strong>${escapeHtml(t.label)}</strong> 删除后将无法恢复。</p>
         <div class="pm-delete-confirm-actions">
           <button class="button button-ghost" data-tm-action="cancel-delete">取消</button>
           <button class="button button-danger" data-tm-action="confirm-delete" data-tm-id="${escapeHtml(t.id)}">确认删除</button>
@@ -4929,38 +5520,38 @@ function renderTemplateManagerDetail() {
 
   // Normal detail
   const previewHtml = t.preview_url
-    ? `<img src="${t.preview_url}" alt="${escapeHtml(t.label)}" style="width:100%;border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:12px;">`
+    ? `<img src="${t.preview_url}" alt="${escapeHtml(t.label)}" class="template-preview-image">`
     : (t.svg_files?.length > 0
-      ? `<img src="/files/templates/${encodeURIComponent(t.id)}/${encodeURIComponent(t.svg_files[0])}" alt="preview" style="width:100%;max-height:200px;object-fit:contain;border-radius:var(--radius-sm);border:1px solid var(--border);background:#fff;margin-bottom:12px;">`
+      ? `<img src="/files/templates/${encodeURIComponent(t.id)}/${encodeURIComponent(t.svg_files[0])}" alt="preview" class="template-preview-image template-preview-image-contain">`
       : "");
 
   elements.tmTemplateDetail.innerHTML = `
     <div class="stack">
       ${previewHtml}
       <div class="pm-detail-header">
-        <h3 class="pm-detail-title">${escapeHtml(t.label)}</h3>
+        <h3 class="pm-detail-title" title="${escapeHtml(t.label)}">${escapeHtml(t.label)}</h3>
         <div class="pm-detail-actions">
           <button class="button button-danger" data-tm-action="delete" data-tm-id="${escapeHtml(t.id)}">删除</button>
         </div>
       </div>
-      <p class="helper">${escapeHtml(t.summary || "")}</p>
+      <p class="helper" title="${escapeHtml(t.summary || "")}">${escapeHtml(truncateText(t.summary || "", 180))}</p>
       <div class="pm-detail-section">
         <h4>基本信息</h4>
         <div class="pm-detail-grid">
           <div class="pm-detail-item">
-            <span class="pm-detail-item-label">模板 ID</span>
+            <span class="pm-detail-item-label">模板标识</span>
             <span class="pm-detail-item-value">${escapeHtml(t.id)}</span>
           </div>
           <div class="pm-detail-item">
-            <span class="pm-detail-item-label">SVG 页面</span>
+            <span class="pm-detail-item-label">页面数量</span>
             <span class="pm-detail-item-value">${t.svg_count} 页</span>
           </div>
           <div class="pm-detail-item">
-            <span class="pm-detail-item-label">设计规范</span>
-            <span class="pm-detail-item-value">${t.has_design_spec ? "有" : "无"}</span>
+            <span class="pm-detail-item-label">方案说明</span>
+            <span class="pm-detail-item-value">${t.has_design_spec ? "已附带" : "未附带"}</span>
           </div>
           <div class="pm-detail-item">
-            <span class="pm-detail-item-label">主题</span>
+            <span class="pm-detail-item-label">主题风格</span>
             <span class="pm-detail-item-value">${escapeHtml(t.theme_mode || "-")}</span>
           </div>
         </div>
@@ -4974,11 +5565,11 @@ function renderTemplateManagerDetail() {
         </div>
       ` : ""}
       <div class="pm-detail-section">
-        <h4>SVG 文件</h4>
+        <h4>页面文件</h4>
         <div class="pm-file-list">
           ${(t.svg_files || []).map((f) => `
             <div class="pm-file-item">
-              <span class="pm-file-icon svg-icon">S</span>
+              <span class="pm-file-icon svg-icon">页</span>
               <span class="pm-file-name">${escapeHtml(f)}</span>
             </div>
           `).join("")}
@@ -5079,11 +5670,11 @@ async function handleTemplateUpload(event) {
   }
 
   if (!formData.get("name") || !formData.get("label")) {
-    showFlash("模板 ID 和显示名称为必填项", "error");
+    showFlash("请先填写模板标识和显示名称。", "error");
     return;
   }
   if (state.templateManager.uploadFiles.length === 0) {
-    showFlash("请至少上传一个文件", "error");
+    showFlash("请至少上传一个文件。", "error");
     return;
   }
 
@@ -5098,7 +5689,7 @@ async function handleTemplateUpload(event) {
     if (!response.ok) {
       throw new Error(data.detail || data.error || `HTTP ${response.status}`);
     }
-    showFlash(`模板 "${formData.get("name")}" 上传成功`);
+    showFlash(`模板“${formData.get("name")}”上传成功。`);
     appendLog("模板上传成功", formData.get("name"));
     state.templateManager.uploadMode = false;
     state.templateManager.uploadFiles = [];
@@ -5112,7 +5703,7 @@ async function handleTemplateUpload(event) {
     renderTemplateManagerList();
     renderTemplateManagerDetail();
   } catch (error) {
-    showFlash("上传失败: " + error.message, "error");
+    showFlash("上传失败，请稍后重试：" + error.message, "error");
     appendLog("模板上传失败", error.message);
   } finally {
     setBusy(false);
@@ -5123,7 +5714,7 @@ async function deleteTemplate(templateId) {
   try {
     setBusy(true);
     await apiFetch(`/api/templates/${encodeURIComponent(templateId)}`, { method: "DELETE" });
-    showFlash(`模板 "${templateId}" 已删除`);
+    showFlash(`模板“${templateId}”已删除。`);
     appendLog("模板已删除", templateId);
     state.templateManager.selectedTemplate = null;
     state.templateManager.deleteConfirm = null;
@@ -5136,7 +5727,7 @@ async function deleteTemplate(templateId) {
     renderTemplateManagerList();
     renderTemplateManagerDetail();
   } catch (error) {
-    showFlash("删除失败: " + error.message, "error");
+    showFlash("删除失败，请稍后重试：" + error.message, "error");
     appendLog("模板删除失败", error.message);
   } finally {
     setBusy(false);
@@ -5180,9 +5771,31 @@ function handleTemplateManagerDetailClick(event) {
   if (btn) handleTemplateDetailAction(btn);
 }
 
+async function bootstrapAdminPage() {
+  await loadCurrentUser();
+  if (!state.user) {
+    window.location.href = "/login";
+    return;
+  }
+  renderUserBadge();
+  if (state.user.role !== "admin") {
+    window.location.href = "/";
+    return;
+  }
+  await loadAdminData();
+  if (state.admin.users.length > 0) {
+    state.admin.selectedUserId = state.admin.users[0].id;
+    await loadAdminUserDetail(state.admin.selectedUserId);
+    await loadAdminData();
+  }
+  renderAdminPanel();
+}
+
 async function bootstrap() {
   try {
     setBusy(true);
+    setupPasswordToggles(document);
+    setupInlineValidation(document);
     // Load saved theme
     const savedTheme = localStorage.getItem("ppt-master-theme") || "light";
     document.documentElement.setAttribute("data-theme", savedTheme === "light" ? "" : savedTheme);
@@ -5200,15 +5813,25 @@ async function bootstrap() {
       });
     }
     elements.openModelConfigButton?.addEventListener("click", openModelConfigModal);
-    elements.openAdminPanelButton?.addEventListener("click", openAdminPanel);
+    elements.openAccountSettingsButton?.addEventListener("click", openAccountSettingsModal);
     elements.logoutButton?.addEventListener("click", logout);
     elements.closeModelConfigButton?.addEventListener("click", closeModelConfigModal);
-    elements.closeAdminPanelButton?.addEventListener("click", closeAdminPanel);
+    elements.closeAccountSettingsButton?.addEventListener("click", closeAccountSettingsModal);
     elements.clearLogButton?.addEventListener("click", () => {
-      elements.logOutput.textContent = "等待操作…";
+      if (!window.confirm("确认清空当前操作日志吗？")) return;
+      state.activityLogs = [];
+      renderLogOutput();
+      showFlash("操作日志已清空。");
     });
+    elements.jumpToLatestLogButton?.addEventListener("click", () => {
+      elements.logOutput?.scrollTo({ top: 0, behavior: "smooth" });
+      requestAnimationFrame(updateLatestLogButton);
+    });
+    elements.logOutput?.addEventListener("scroll", updateLatestLogButton);
     elements.modelConfigBackdrop?.addEventListener("click", closeModelConfigModal);
+    elements.accountSettingsBackdrop?.addEventListener("click", closeAccountSettingsModal);
     elements.modelConfigForm?.addEventListener("submit", saveModelConfig);
+    elements.accountSettingsForm?.addEventListener("submit", saveAccountSettings);
     elements.fetchModelsButton?.addEventListener("click", fetchRemoteModels);
     elements.testModelButton?.addEventListener("click", testModelConfig);
     elements.createProfileButton?.addEventListener("click", beginNewProfile);
@@ -5225,7 +5848,6 @@ async function bootstrap() {
     elements.openProjectManagerButton?.addEventListener("click", openProjectManagerModal);
     elements.closeProjectManagerButton?.addEventListener("click", closeProjectManagerModal);
     elements.projectManagerBackdrop?.addEventListener("click", closeProjectManagerModal);
-    elements.adminPanelBackdrop?.addEventListener("click", closeAdminPanel);
     // Template Manager bindings
     elements.openTemplateManagerButton?.addEventListener("click", openTemplateManagerModal);
     elements.closeTemplateManagerButton?.addEventListener("click", closeTemplateManagerModal);
@@ -5253,7 +5875,9 @@ async function bootstrap() {
     });
     elements.pmProjectList?.addEventListener("click", handleProjectManagerListClick);
     elements.pmProjectDetail?.addEventListener("click", handleProjectManagerDetailClick);
+    elements.adminCreateUserForm?.addEventListener("submit", handleAdminCreateUserSubmit);
     elements.adminUsersList?.addEventListener("click", handleAdminUsersListClick);
+    elements.adminUserDetail?.addEventListener("click", handleAdminUserDetailClick);
     elements.adminUserSearchInput?.addEventListener("input", (event) => {
       state.admin.userQuery = event.currentTarget.value || "";
       state.admin.page = 1;
@@ -5266,6 +5890,11 @@ async function bootstrap() {
     });
     elements.adminStatusFilter?.addEventListener("change", (event) => {
       state.admin.statusFilter = event.target.value || "";
+      state.admin.page = 1;
+      loadAdminData().then(renderAdminPanel).catch((error) => showFlash(error.message, "error"));
+    });
+    elements.adminProviderFilter?.addEventListener("change", (event) => {
+      state.admin.providerFilter = event.target.value || "";
       state.admin.page = 1;
       loadAdminData().then(renderAdminPanel).catch((error) => showFlash(error.message, "error"));
     });
@@ -5362,12 +5991,12 @@ async function bootstrap() {
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
         closeModelConfigModal();
+        closeAccountSettingsModal();
         closeSvgPreviewModal();
         closeProjectManagerModal();
         closeTemplateManagerModal();
         closeImageModelModal();
         closeDocPreview();
-        closeAdminPanel();
       }
       // Arrow keys for SVG preview navigation
       if (elements.svgPreviewModal && !elements.svgPreviewModal.classList.contains("hidden")) {
@@ -5378,6 +6007,11 @@ async function bootstrap() {
         }
       }
     });
+    if (isAdminPage) {
+      await bootstrapAdminPage();
+      return;
+    }
+    renderLogOutput();
     await loadCurrentUser();
     await loadDashboard({ preserveSelection: false });
   } catch (error) {
@@ -5461,7 +6095,13 @@ function renderProjectManagerList() {
 }
 
 function metricBadge(label, count) {
-  return `<span class="badge">${label}: ${count}</span>`;
+  const labelMap = {
+    src: "来源",
+    svg: "页面",
+    pptx: "PPT",
+  };
+  const displayLabel = labelMap[label] || label;
+  return `<span class="badge">${displayLabel}：${count}</span>`;
 }
 
 function renderProjectManagerDetail() {
@@ -5479,9 +6119,9 @@ function renderProjectManagerDetail() {
   if (state.projectManager.deleteConfirm === getProjectRef(project)) {
     elements.pmProjectDetail.innerHTML = `
       <div class="pm-delete-confirm">
-        <h4>确认删除项目？</h4>
+        <h4>确认删除这个项目？</h4>
         <p>项目 <strong>${escapeHtml(project.name)}</strong> 将被永久删除，此操作不可撤销。</p>
-        <p class="helper">路径: ${escapeHtml(project.path)}</p>
+        <p class="helper">存放位置：${escapeHtml(project.path)}</p>
         <div class="pm-delete-confirm-actions">
           <button class="button button-ghost" data-pm-action="cancel-delete">取消</button>
           <button class="button button-primary" data-pm-action="confirm-delete" data-pm-project="${escapeHtml(getProjectRef(project))}">确认删除</button>
@@ -5519,18 +6159,18 @@ function renderProjectManagerDetail() {
           <span class="pm-detail-item-value">${project.source_count} 个</span>
         </div>
         <div class="pm-detail-item">
-          <span class="pm-detail-item-label">SVG 页面</span>
+          <span class="pm-detail-item-label">页面数量</span>
           <span class="pm-detail-item-value">${project.svg_final_count} 页</span>
         </div>
       </div>
     </div>
     <div class="pm-detail-section">
-      <h4>项目路径</h4>
+      <h4>项目位置</h4>
       <div class="pm-detail-path">${escapeHtml(project.path)}</div>
     </div>
     ${pptxFiles.length > 0 ? `
       <div class="pm-detail-section">
-        <h4>PPTX 文件 (${pptxFiles.length})</h4>
+        <h4>导出的演示文稿文件 (${pptxFiles.length})</h4>
         <div class="pm-file-list">
           ${pptxFiles.slice(0, 10).map((file) => `
             <div class="pm-file-item">
@@ -5544,11 +6184,11 @@ function renderProjectManagerDetail() {
     ` : ""}
     ${svgFiles.length > 0 ? `
       <div class="pm-detail-section">
-        <h4>SVG 文件 (${svgFiles.length})</h4>
+        <h4>页面文件 (${svgFiles.length})</h4>
         <div class="pm-file-list">
           ${svgFiles.slice(0, 10).map((file) => `
             <div class="pm-file-item">
-              <span class="pm-file-icon svg-icon">S</span>
+              <span class="pm-file-icon svg-icon">页</span>
               <span class="pm-file-name">${escapeHtml(file)}</span>
             </div>
           `).join("")}

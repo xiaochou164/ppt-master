@@ -1,0 +1,84 @@
+<svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1280" height="720" fill="#FFFFFF"/>
+  
+  <!-- Header bar -->
+  <rect x="0" y="0" width="1280" height="80" fill="#1E3A5F"/>
+  
+  <!-- Title -->
+  <text x="60" y="52" font-family="Microsoft YaHei" font-size="32" font-weight="bold" fill="#FFFFFF">经典排队模型（续）</text>
+  
+  <!-- Page number -->
+  <text x="1220" y="52" font-family="Arial" font-size="20" fill="#FFFFFF" text-anchor="end">6 / 10</text>
+  
+  <!-- Left section: M/M/c Model -->
+  <rect x="40" y="100" width="580" height="580" rx="8" fill="#F8FAFC" stroke="#4A90A4" stroke-width="2"/>
+  
+  <!-- M/M/c Title -->
+  <rect x="40" y="100" width="580" height="50" rx="8" fill="#4A90A4"/>
+  <rect x="40" y="130" width="580" height="20" fill="#4A90A4"/>
+  <text x="60" y="133" font-family="Microsoft YaHei" font-size="24" font-weight="bold" fill="#FFFFFF">M/M/c 多服务台模型</text>
+  
+  <!-- M/M/c Content -->
+  <text x="60" y="185" font-family="Microsoft YaHei" font-size="20" fill="#1E3A5F" font-weight="bold">系统特征</text>
+  <text x="60" y="215" font-family="Microsoft YaHei" font-size="18" fill="#333333">• 泊松到达，强度 λ</text>
+  <text x="60" y="245" font-family="Microsoft YaHei" font-size="18" fill="#333333">• 指数服务，每服务台服务率 μ</text>
+  <text x="60" y="275" font-family="Microsoft YaHei" font-size="18" fill="#333333">• c 个相同并行服务台</text>
+  
+  <!-- Stability condition box -->
+  <rect x="60" y="295" width="540" height="45" rx="4" fill="#FFF3E6" stroke="#E67E22" stroke-width="1"/>
+  <text x="80" y="323" font-family="Microsoft YaHei" font-size="18" fill="#E67E22" font-weight="bold">稳定条件：ρ = λ/(cμ) &lt; 1</text>
+  
+  <!-- Performance metrics -->
+  <text x="60" y="375" font-family="Microsoft YaHei" font-size="20" fill="#1E3A5F" font-weight="bold">主要性能指标</text>
+  <text x="60" y="405" font-family="Microsoft YaHei" font-size="18" fill="#333333">• 系统空闲概率 P₀</text>
+  <text x="60" y="435" font-family="Microsoft YaHei" font-size="18" fill="#333333">• 平均队列长度 Lq</text>
+  <text x="60" y="465" font-family="Microsoft YaHei" font-size="18" fill="#333333">• 平均等待时间 Wq</text>
+  <text x="60" y="495" font-family="Microsoft YaHei" font-size="18" fill="#333333">• 系统平均人数 L 和逗留时间 W</text>
+  
+  <!-- Application scenarios -->
+  <rect x="60" y="520" width="540" height="140" rx="6" fill="#E8F4F8"/>
+  <text x="80" y="550" font-family="Microsoft YaHei" font-size="18" fill="#1E3A5F" font-weight="bold">应用场景</text>
+  <text x="80" y="580" font-family="Microsoft YaHei" font-size="16" fill="#333333">• 银行多柜台服务系统</text>
+  <text x="80" y="608" font-family="Microsoft YaHei" font-size="16" fill="#333333">• 医院多医生门诊窗口</text>
+  <text x="80" y="636" font-family="Microsoft YaHei" font-size="16" fill="#333333">• 多服务器云计算系统</text>
+  
+  <!-- Right section: M/G/1 Model -->
+  <rect x="660" y="100" width="580" height="580" rx="8" fill="#F8FAFC" stroke="#1E3A5F" stroke-width="2"/>
+  
+  <!-- M/G/1 Title -->
+  <rect x="660" y="100" width="580" height="50" rx="8" fill="#1E3A5F"/>
+  <rect x="660" y="130" width="580" height="20" fill="#1E3A5F"/>
+  <text x="680" y="133" font-family="Microsoft YaHei" font-size="24" font-weight="bold" fill="#FFFFFF">M/G/1 一般服务模型</text>
+  
+  <!-- M/G/1 Content -->
+  <text x="680" y="185" font-family="Microsoft YaHei" font-size="20" fill="#1E3A5F" font-weight="bold">系统特征</text>
+  <text x="680" y="215" font-family="Microsoft YaHei" font-size="18" fill="#333333">• 泊松到达，强度 λ</text>
+  <text x="680" y="245" font-family="Microsoft YaHei" font-size="18" fill="#333333">• 服务时间：一般分布</text>
+  <text x="680" y="275" font-family="Microsoft YaHei" font-size="18" fill="#333333">• 均值 1/μ，方差 σ²</text>
+  <text x="680" y="305" font-family="Microsoft YaHei" font-size="18" fill="#333333">• 单服务台</text>
+  
+  <!-- Key insight box -->
+  <rect x="680" y="330" width="520" height="70" rx="4" fill="#FFF3E6" stroke="#E67E22" stroke-width="1"/>
+  <text x="700" y="358" font-family="Microsoft YaHei" font-size="16" fill="#E67E22" font-weight="bold">核心价值</text>
+  <text x="700" y="385" font-family="Microsoft YaHei" font-size="16" fill="#333333">适用于服务时间波动大、不满足指数分布的系统</text>
+  
+  <!-- Research focus -->
+  <text x="680" y="435" font-family="Microsoft YaHei" font-size="20" fill="#1E3A5F" font-weight="bold">研究重点</text>
+  <text x="680" y="465" font-family="Microsoft YaHei" font-size="18" fill="#333333">• 平均等待时间分析</text>
+  <text x="680" y="495" font-family="Microsoft YaHei" font-size="18" fill="#333333">• 忙期分析</text>
+  <text x="680" y="525" font-family="Microsoft YaHei" font-size="18" fill="#333333">• 极限分布研究</text>
+  
+  <!-- Pollaczek-Khinchin formula hint -->
+  <rect x="680" y="550" width="520" height="110" rx="6" fill="#E8F4F8"/>
+  <text x="700" y="580" font-family="Microsoft YaHei" font-size="18" fill="#1E3A5F" font-weight="bold">P-K 公式（Pollaczek-Khinchin）</text>
+  <text x="700" y="610" font-family="Microsoft YaHei" font-size="16" fill="#333333">可直接计算 M/G/1 的平均等待时间</text>
+  <text x="700" y="640" font-family="Microsoft YaHei" font-size="16" fill="#4A90A4">无需服务时间的具体分布形式</text>
+  
+  <!-- Decorative elements -->
+  <circle cx="1240" cy="700" r="80" fill="#4A90A4" fill-opacity="0.1"/>
+  <circle cx="40" cy="680" r="60" fill="#E67E22" fill-opacity="0.1"/>
+  
+  <!-- Accent line -->
+  <rect x="40" y="695" width="1200" height="3" fill="#E67E22"/>
+</svg>

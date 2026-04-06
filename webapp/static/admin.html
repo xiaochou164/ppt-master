@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PPT Master · 管理控制台</title>
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="admin-page" data-page="admin">
+  <div class="ambient ambient-a"></div>
+  <div class="ambient ambient-b"></div>
+
+  <header class="hero">
+    <div class="hero-shell panel admin-hero">
+      <div class="hero-copy">
+        <p class="section-kicker">管理后台</p>
+        <h1>账号与访问管理</h1>
+        <p class="hero-text">在这里查看账号状态、访问记录和登录情况。</p>
+        <div class="admin-nav-strip" aria-label="管理导航">
+          <span class="admin-nav-pill admin-nav-pill-active">账号列表</span>
+          <span class="admin-nav-pill">访问记录</span>
+          <span class="admin-nav-pill">登录与权限</span>
+        </div>
+      </div>
+      <div class="hero-actions">
+        <div class="hero-actions-group">
+          <a class="button button-ghost" href="/">返回控制台</a>
+          <button id="openAccountSettingsButton" class="button button-ghost hidden" type="button">账号设置</button>
+          <button id="logoutButton" class="button button-ghost" type="button">退出登录</button>
+        </div>
+        <div class="hero-actions-group hero-actions-group-meta">
+          <span id="userBadge" class="badge hidden">—</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="shell admin-shell">
+    <section class="panel admin-panel-page">
+      <div class="admin-overview">
+        <article class="admin-overview-card">
+          <span class="admin-overview-label">用户总数</span>
+          <strong id="adminOverviewUsers">0</strong>
+        </article>
+        <article class="admin-overview-card">
+          <span class="admin-overview-label">访问记录</span>
+          <strong id="adminOverviewLogs">0</strong>
+        </article>
+        <article class="admin-overview-card">
+          <span class="admin-overview-label">当前选中</span>
+          <strong id="adminOverviewSelected">未选择</strong>
+        </article>
+      </div>
+      <div class="project-manager-layout admin-layout-page">
+        <div class="project-manager-list admin-column admin-column-users">
+          <div class="section-head">
+            <p class="section-kicker">账号列表</p>
+            <h2>用户列表</h2>
+          </div>
+          <div class="admin-toolbar">
+            <label class="field admin-filter">
+              <span>搜索</span>
+              <input id="adminUserSearchInput" type="text" placeholder="按邮箱 / 用户名 / 显示名搜索">
+            </label>
+            <div class="two-col admin-filter-row">
+              <label class="field admin-filter">
+                <span>角色</span>
+                <select id="adminRoleFilter">
+                  <option value="">全部</option>
+                  <option value="admin">管理员</option>
+                  <option value="user">普通用户</option>
+                </select>
+              </label>
+              <label class="field admin-filter">
+                <span>状态</span>
+                <select id="adminStatusFilter">
+                  <option value="">全部</option>
+                  <option value="active">启用</option>
+                  <option value="disabled">禁用</option>
+                </select>
+              </label>
+            </div>
+            <label class="field admin-filter">
+              <span>账号来源</span>
+              <select id="adminProviderFilter">
+                <option value="">全部</option>
+                <option value="local">本地账号</option>
+                <option value="authentik">Authentik / SSO</option>
+                <option value="mock">Mock</option>
+                <option value="migration">迁移导入</option>
+              </select>
+            </label>
+          </div>
+          <div id="adminUsersSummary" class="admin-inline-summary helper">等待加载用户数据…</div>
+          <div id="adminUsersList" class="pm-list"></div>
+          <div class="pm-detail-actions admin-pagination">
+            <button id="adminPrevPage" class="button button-ghost button-small" type="button">上一页</button>
+            <span id="adminPageIndicator" class="helper">第 1 页</span>
+            <button id="adminNextPage" class="button button-ghost button-small" type="button">下一页</button>
+          </div>
+        </div>
+        <div class="project-manager-detail admin-column admin-column-detail">
+          <section class="admin-section-card admin-create-card">
+            <div class="section-head">
+              <p class="section-kicker">新增账号</p>
+              <h2>创建本地用户</h2>
+            </div>
+            <form id="adminCreateUserForm" class="stack">
+              <div class="two-col admin-filter-row">
+                <label class="field">
+                  <span>邮箱</span>
+                  <input id="adminCreateEmail" name="email" type="email" required placeholder="例如 teammate@example.com">
+                </label>
+                <label class="field">
+                  <span>显示名</span>
+                  <input id="adminCreateDisplayName" name="display_name" type="text" placeholder="可选">
+                </label>
+              </div>
+              <div class="two-col admin-filter-row">
+                <label class="field">
+                  <span>初始密码</span>
+                  <div class="password-input-wrap">
+                    <input id="adminCreatePassword" name="password" type="password" required minlength="6" placeholder="至少 6 位">
+                    <button class="button button-ghost button-small password-toggle" type="button" data-password-toggle>显示</button>
+                  </div>
+                </label>
+                <label class="field">
+                  <span>角色</span>
+                  <select id="adminCreateRole" name="role">
+                    <option value="user" selected>普通用户</option>
+                    <option value="admin">管理员</option>
+                  </select>
+                </label>
+              </div>
+              <div class="action-row">
+                <button class="button button-secondary" type="submit">创建账号</button>
+              </div>
+              <p class="helper">这里创建的是本地账号，适用于 `AUTH_ENABLED=false` 的环境。</p>
+            </form>
+          </section>
+          <section class="admin-section-card admin-detail-card">
+            <div class="section-head">
+              <p class="section-kicker">账号详情</p>
+              <h2>用户详情</h2>
+            </div>
+            <div id="adminUserDetail" class="pm-detail">
+              <p class="helper">选择左侧用户查看详情</p>
+            </div>
+          </section>
+          <section class="admin-section-card admin-audit-card">
+            <div class="section-head">
+              <p class="section-kicker">访问审计</p>
+              <h2>访问记录</h2>
+            </div>
+            <div id="adminAuditSummary" class="badge-row admin-audit-summary"></div>
+            <div class="admin-toolbar admin-audit-toolbar">
+              <div class="two-col admin-filter-row">
+                <label class="field admin-filter">
+                  <span>动作</span>
+                  <input id="adminAuditActionInput" type="text" placeholder="如 登录 / 更新账号 / 删除项目">
+                </label>
+                <label class="field admin-filter">
+                  <span>资源类型</span>
+                  <input id="adminAuditResourceInput" type="text" placeholder="如 项目 / 账号 / 会话">
+                </label>
+              </div>
+              <div class="two-col admin-filter-row">
+                <label class="field admin-filter">
+                  <span>开始时间</span>
+                  <input id="adminAuditStartInput" type="datetime-local">
+                </label>
+                <label class="field admin-filter">
+                  <span>结束时间</span>
+                  <input id="adminAuditEndInput" type="datetime-local">
+                </label>
+              </div>
+              <div class="badge-row admin-audit-actions">
+                <button id="adminAuditQuick24h" class="button button-ghost button-small" type="button">最近 24 小时</button>
+                <button id="adminAuditQuick7d" class="button button-ghost button-small" type="button">最近 7 天</button>
+                <button id="adminAuditClear" class="button button-ghost button-small" type="button">清空条件</button>
+                <button id="adminAuditCopy" class="button button-ghost button-small" type="button">复制当前</button>
+                <button id="adminAuditExport" class="button button-secondary button-small" type="button">导出 CSV</button>
+              </div>
+            </div>
+            <div id="adminAuditLog" class="log-output admin-audit-list">等待加载…</div>
+            <div class="pm-detail-actions admin-pagination">
+              <button id="adminAuditPrevPage" class="button button-ghost button-small" type="button">上一页</button>
+              <span id="adminAuditPageIndicator" class="helper">第 1 页</span>
+              <button id="adminAuditNextPage" class="button button-ghost button-small" type="button">下一页</button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="flash" class="flash hidden"></div>
+
+  <div id="accountSettingsModal" class="modal hidden" aria-hidden="true">
+    <div id="accountSettingsBackdrop" class="modal-backdrop"></div>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="accountSettingsTitle">
+      <div class="modal-head">
+        <div>
+          <p class="section-kicker">账号</p>
+          <h2 id="accountSettingsTitle">账号设置</h2>
+        </div>
+        <button id="closeAccountSettingsButton" class="button button-ghost" type="button">关闭</button>
+      </div>
+      <form id="accountSettingsForm" class="stack">
+        <div class="account-summary-card">
+          <div>
+            <strong id="accountSummaryName">-</strong>
+            <p id="accountSummaryMeta" class="helper">-</p>
+          </div>
+          <span id="accountSummaryBadge" class="badge">-</span>
+        </div>
+        <label class="field">
+          <span>显示名</span>
+          <input id="accountDisplayNameInput" name="display_name" type="text" required placeholder="显示在页面顶部">
+        </label>
+        <label class="field">
+          <span>邮箱</span>
+          <input id="accountEmailInput" type="email" disabled>
+        </label>
+          <div id="accountPasswordFields" class="stack">
+            <div class="two-col">
+              <label class="field">
+                <span>当前密码</span>
+                <div class="password-input-wrap">
+                  <input id="accountCurrentPasswordInput" name="current_password" type="password" autocomplete="current-password" placeholder="修改密码时填写">
+                  <button class="button button-ghost button-small password-toggle" type="button" data-password-toggle>显示</button>
+                </div>
+              </label>
+              <label class="field">
+                <span>新密码</span>
+                <div class="password-input-wrap">
+                  <input id="accountNewPasswordInput" name="password" type="password" minlength="6" autocomplete="new-password" placeholder="至少 6 位">
+                  <button class="button button-ghost button-small password-toggle" type="button" data-password-toggle>显示</button>
+                </div>
+              </label>
+            </div>
+          <p class="helper">只有本地账号可以在这里修改密码。</p>
+        </div>
+        <p id="accountProviderHint" class="helper"></p>
+        <div class="action-row">
+          <button class="button button-secondary" type="submit">保存账号设置</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/static/app.js" defer></script>
+</body>
+</html>

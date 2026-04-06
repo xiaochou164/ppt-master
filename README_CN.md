@@ -252,6 +252,7 @@ APP_ENCRYPTION_KEY=replace-with-a-random-secret
 - `AUTHENTIK_ADMIN_GROUPS` 中的组成员会自动映射为本地 `admin`
 - `AUTHENTIK_SYNC_MODE` 支持 `strict`（强制覆盖）、`if_present`（仅当 OIDC 返回 groups 时更新）、`disabled`（不自动同步）
 - 当 `AUTH_ENABLED=true` 但配置不完整时，登录页会直接显示缺失项，方便排查
+- 本地模式（`AUTH_ENABLED=false`）可通过 `PPT_MASTER_LOCAL_ADMIN_EMAIL/PASSWORD` 自动创建管理员账号
 
 控制台支持以下功能：
 

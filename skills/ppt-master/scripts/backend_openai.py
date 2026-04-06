@@ -20,6 +20,7 @@ import os
 import sys
 import time
 import threading
+import urllib.request
 
 from openai import OpenAI
 
@@ -127,7 +128,7 @@ PROVIDERS = {
         ],
         "param_format": PARAM_FORMAT_IMAGE_SIZE,
         "default_base_url": "https://api.siliconflow.cn/v1",
-        "default_model": "black-forest-labs/FLUX.1-schnell",
+        "default_model": "Kwai-Kolors/Kolors",
         "unsupported_models": {
             "Qwen/Qwen-Image-Edit-2509",  # Image editing model
         },
@@ -218,8 +219,11 @@ def _build_generate_params(
         params["quality"] = quality
 
     elif param_format == PARAM_FORMAT_IMAGE_SIZE:
-        # SiliconFlow style: uses image_size string
-        params["image_size"] = f"{width}x{height}"
+        # SiliconFlow style: uses size string (same format as DALL-E but without response_format)
+        size = f"{width}x{height}"
+        params["size"] = size
+        # Remove response_format for SiliconFlow (it returns URL instead)
+        params.pop("response_format", None)
 
     elif param_format == PARAM_FORMAT_WIDTH_HEIGHT:
         # Generic style: uses width and height integers
@@ -385,14 +389,27 @@ def _generate_image(api_key: str, prompt: str, negative_prompt: str = None,
 
     if resp is not None and resp.data:
         path = _resolve_output_path(prompt, output_dir, filename, ".png")
-        image_data = base64.b64decode(resp.data[0].b64_json)
+
+        # Handle both b64_json and URL responses
+        image_data = resp.data[0].b64_json
+        if image_data:
+            # Base64 encoded image
+            image_bytes = base64.b64decode(image_data)
+        elif resp.data[0].url:
+            # URL to image (e.g., SiliconFlow returns URL instead of b64_json)
+            print(f"  Downloading from URL...")
+            image_url = resp.data[0].url
+            with urllib.request.urlopen(image_url, timeout=60) as response:
+                image_bytes = response.read()
+        else:
+            raise RuntimeError("No image data received (neither b64_json nor url)")
 
         if HAS_PIL:
-            image = PILImage.open(io.BytesIO(image_data))
+            image = PILImage.open(io.BytesIO(image_bytes))
             image.save(path)
         else:
             with open(path, "wb") as f:
-                f.write(image_data)
+                f.write(image_bytes)
 
         print(f"  File saved to: {path}")
         _report_resolution(path)

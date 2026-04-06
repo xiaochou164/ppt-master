@@ -44,15 +44,33 @@
         href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎴</text></svg>">
 
     <style>
+        :root {
+            --viewer-bg: #17120f;
+            --viewer-bg-soft: #221b15;
+            --viewer-card: rgba(255, 251, 246, 0.88);
+            --viewer-card-strong: rgba(255, 253, 249, 0.96);
+            --viewer-accent: #bc4b36;
+            --viewer-accent-2: #0d7c86;
+            --viewer-border: rgba(72, 55, 37, 0.12);
+            --viewer-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
+        }
+
         body {
-            font-family: 'Microsoft YaHei', 'PingFang SC', system-ui, -apple-system, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: "Avenir Next", "SF Pro Text", "PingFang SC", system-ui, -apple-system, sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(188, 75, 54, 0.18), transparent 26%),
+                radial-gradient(circle at 86% 10%, rgba(13, 124, 134, 0.18), transparent 24%),
+                linear-gradient(180deg, var(--viewer-bg-soft) 0%, var(--viewer-bg) 100%);
             min-height: 100vh;
         }
 
         .glass {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
+            background:
+                linear-gradient(180deg, var(--viewer-card-strong), var(--viewer-card)),
+                linear-gradient(135deg, rgba(188, 75, 54, 0.04), rgba(13, 124, 134, 0.05));
+            backdrop-filter: blur(18px);
+            border: 1px solid var(--viewer-border);
+            box-shadow: var(--viewer-shadow);
         }
 
         .collection-card {
@@ -62,11 +80,11 @@
 
         .collection-card:hover {
             transform: translateY(-8px);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 32px 60px rgba(0, 0, 0, 0.24);
         }
 
         .slide-container {
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            box-shadow: 0 30px 64px rgba(0, 0, 0, 0.2);
             transition: transform 0.3s ease;
         }
 
@@ -85,7 +103,7 @@
         }
 
         .nav-btn:hover:not(:disabled) {
-            transform: scale(1.1);
+            transform: scale(1.08);
         }
 
         .nav-btn:disabled {
@@ -164,6 +182,7 @@
 
         .progress-bar {
             height: 4px;
+            background: linear-gradient(90deg, var(--viewer-accent), var(--viewer-accent-2));
             transition: width 0.3s ease;
         }
 
@@ -216,7 +235,7 @@
         }
 
         .view-mode-btn.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--viewer-accent) 0%, var(--viewer-accent-2) 100%);
             color: white;
         }
 
@@ -226,6 +245,255 @@
             height: auto;
             min-height: 400px;
         }
+
+        .library-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 28px;
+        }
+
+        .library-search {
+            width: min(100%, 360px);
+            padding: 12px 16px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            background: rgba(255, 255, 255, 0.12);
+            color: white;
+            outline: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+        }
+
+        .library-search::placeholder {
+            color: rgba(255, 255, 255, 0.56);
+        }
+
+        .library-search:focus {
+            border-color: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 0 0 4px rgba(188, 75, 54, 0.14);
+            background: rgba(255, 255, 255, 0.16);
+        }
+
+        .library-summary {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.88rem;
+        }
+
+        .library-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(10px);
+        }
+
+        .viewer-meta {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 18px;
+        }
+
+        .viewer-meta-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 0.85rem;
+        }
+
+        .slide-jump {
+            min-width: 220px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            border: 1px solid rgba(72, 55, 37, 0.12);
+            background: rgba(255, 255, 255, 0.92);
+            color: #4b5563;
+            font-weight: 600;
+            outline: none;
+        }
+
+        .overview-card-active {
+            outline: 2px solid rgba(188, 75, 54, 0.35);
+            outline-offset: 2px;
+        }
+
+        .viewer-header-shell {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .viewer-header-left,
+        .viewer-header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            min-width: 0;
+        }
+
+        .collection-selector-button {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            max-width: 100%;
+            padding: 10px 14px;
+            background: rgba(255, 255, 255, 0.92);
+            border-radius: 14px;
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(72, 55, 37, 0.12);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+        }
+
+        .collection-selector-button:hover {
+            border-color: rgba(13, 124, 134, 0.24);
+            box-shadow: 0 16px 32px rgba(0, 0, 0, 0.12);
+            transform: translateY(-1px);
+        }
+
+        .collection-selector-name {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .keyboard-hints-shell {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .viewer-mode-toggle {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-right: 10px;
+            background: rgba(243, 244, 246, 0.9);
+            border-radius: 12px;
+            padding: 4px;
+        }
+
+        .hint-label {
+            color: #6b7280;
+        }
+
+        .hint-kbd {
+            padding: 4px 8px;
+            background: rgba(243, 244, 246, 0.94);
+            color: #4b5563;
+            font-size: 0.75rem;
+            border-radius: 8px;
+            border: 1px solid rgba(209, 213, 219, 0.9);
+        }
+
+        .slide-viewer-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .slide-nav-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-top: 24px;
+        }
+
+        .slide-page-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+        }
+
+        .slide-overview-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        #libraryView h1,
+        #viewerTitle,
+        .drop-shadow,
+        .drop-shadow-lg {
+            text-shadow: 0 10px 30px rgba(0, 0, 0, 0.22) !important;
+        }
+
+        #currentPage {
+            color: var(--viewer-accent-2) !important;
+        }
+
+        @media (max-width: 768px) {
+            .glass {
+                box-shadow: 0 18px 36px rgba(0, 0, 0, 0.18);
+            }
+
+            .library-search {
+                width: 100%;
+            }
+
+            .viewer-header-shell,
+            .viewer-header-left,
+            .viewer-header-right {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .keyboard-hints-shell {
+                justify-content: flex-start;
+            }
+
+            .viewer-mode-toggle {
+                margin-right: 0;
+                width: fit-content;
+            }
+
+            .slide-jump {
+                min-width: 0;
+                width: 100%;
+            }
+
+            .slide-nav-row {
+                align-items: stretch;
+                gap: 12px;
+            }
+
+            .slide-overview-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        *:focus-visible {
+            outline: 2px solid rgba(255, 255, 255, 0.78);
+            outline-offset: 3px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation: none !important;
+                transition: none !important;
+                scroll-behavior: auto !important;
+            }
+        }
     </style>
 </head>
 
@@ -233,20 +501,19 @@
     <!-- Header -->
     <header class="glass shadow-lg sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 py-4">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-4">
+            <div class="viewer-header-shell">
+                <div class="viewer-header-left">
                     <a href="index.html" class="text-gray-600 hover:text-brand-600 transition-colors">
                         <i class="fas fa-arrow-left"></i>
                         <span class="ml-2">返回项目列表</span>
                     </a>
-                </div>
 
-                <!-- Collection Selector (shown when viewing slides) -->
-                <div id="collectionSelector" class="hidden relative">
+                    <!-- Collection Selector (shown when viewing slides) -->
+                    <div id="collectionSelector" class="hidden relative">
                     <button onclick="toggleDropdown()"
-                        class="flex items-center space-x-2 px-4 py-2 bg-white rounded-lg shadow border border-gray-200 hover:border-brand-400 transition-colors">
+                        class="collection-selector-button">
                         <span id="currentCollectionIcon" class="text-xl">🎴</span>
-                        <span id="currentCollectionName" class="font-medium text-gray-700">选择幻灯片集</span>
+                        <span id="currentCollectionName" class="collection-selector-name font-medium text-gray-700">选择幻灯片集</span>
                         <i class="fas fa-chevron-down text-gray-400"></i>
                     </button>
                     <div id="dropdownMenu"
@@ -254,10 +521,11 @@
                         <!-- Dropdown items will be generated by JavaScript -->
                     </div>
                 </div>
+                </div>
 
-                <div id="keyboardHints" class="hidden items-center space-x-2 text-sm">
+                <div id="keyboardHints" class="hidden text-sm viewer-header-right keyboard-hints-shell">
                     <!-- View Mode Toggle -->
-                    <div class="flex items-center space-x-1 mr-4 bg-gray-100 rounded-lg p-1">
+                    <div class="viewer-mode-toggle">
                         <button onclick="setViewMode('normal')" id="normalModeBtn"
                             class="view-mode-btn px-3 py-1 rounded-md text-xs font-medium text-gray-600 hover:bg-white"
                             title="标准视图">
@@ -269,16 +537,16 @@
                             <i class="fas fa-tv"></i>
                         </button>
                     </div>
-                    <span class="text-gray-500">快捷键：</span>
-                    <kbd class="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded border">←</kbd>
-                    <kbd class="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded border">→</kbd>
-                    <span class="text-gray-500">翻页</span>
-                    <kbd class="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded border ml-2">T</kbd>
-                    <span class="text-gray-500">剧院</span>
-                    <kbd class="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded border ml-2">F</kbd>
-                    <span class="text-gray-500">全屏</span>
-                    <kbd class="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded border ml-2">ESC</kbd>
-                    <span class="text-gray-500">返回</span>
+                    <span class="hint-label">快捷键：</span>
+                    <kbd class="hint-kbd">←</kbd>
+                    <kbd class="hint-kbd">→</kbd>
+                    <span class="hint-label">翻页</span>
+                    <kbd class="hint-kbd">T</kbd>
+                    <span class="hint-label">剧院</span>
+                    <kbd class="hint-kbd">F</kbd>
+                    <span class="hint-label">全屏</span>
+                    <kbd class="hint-kbd">ESC</kbd>
+                    <span class="hint-label">返回</span>
                 </div>
             </div>
         </div>
@@ -297,6 +565,15 @@
                 <p class="text-white/80 text-lg">
                     选择一个幻灯片集开始浏览
                 </p>
+            </div>
+
+            <div class="library-toolbar">
+                <div class="library-summary" id="librarySummary">
+                    <span class="library-pill">集合 0</span>
+                    <span class="library-pill">页面 0</span>
+                    <span class="library-pill">支持关键词搜索</span>
+                </div>
+                <input id="collectionSearchInput" class="library-search" type="search" placeholder="搜索主题、项目名或描述，例如：心理 / Google / 战略">
             </div>
 
             <!-- Collection Cards Grid -->
@@ -327,10 +604,14 @@
                 <p id="viewerDescription" class="text-white/70">
                     幻灯片描述
                 </p>
+                <div class="viewer-meta">
+                    <span id="viewerCollectionMeta" class="viewer-meta-pill">0 页</span>
+                    <span id="viewerSlideMeta" class="viewer-meta-pill">当前第 1 页</span>
+                </div>
             </div>
 
             <!-- Slide Viewer -->
-            <div id="slideViewerContainer" class="flex flex-col lg:flex-row gap-6 slide-enter">
+            <div id="slideViewerContainer" class="slide-viewer-layout lg:flex-row gap-6 slide-enter">
                 <!-- Main Slide -->
                 <div class="main-slide-area flex-1">
                     <div class="glass rounded-2xl p-4 slide-container">
@@ -341,17 +622,21 @@
                     </div>
 
                     <!-- Navigation Controls -->
-                    <div class="flex items-center justify-center mt-6 space-x-4">
+                    <div class="slide-nav-row">
                         <button id="prevBtn" onclick="prevSlide()"
                             class="nav-btn w-12 h-12 rounded-full glass shadow-md flex items-center justify-center text-gray-600 border border-gray-200 hover:bg-brand-500 hover:text-white hover:border-brand-500">
                             <i class="fas fa-chevron-left"></i>
                         </button>
 
-                        <div class="flex items-center space-x-2 px-6 py-2 glass rounded-full shadow-md">
+                        <div class="glass rounded-full shadow-md slide-page-pill">
                             <span id="currentPage" class="text-brand-600 font-bold">1</span>
                             <span class="text-gray-400">/</span>
                             <span id="totalPages" class="text-gray-600">1</span>
                         </div>
+
+                        <select id="slideJumpSelect" class="slide-jump" aria-label="跳转到指定页面">
+                            <option value="0">跳转到页面</option>
+                        </select>
 
                         <button id="nextBtn" onclick="nextSlide()"
                             class="nav-btn w-12 h-12 rounded-full glass shadow-md flex items-center justify-center text-gray-600 border border-gray-200 hover:bg-brand-500 hover:text-white hover:border-brand-500">
@@ -395,7 +680,7 @@
                     <i class="fas fa-list-ul mr-3"></i>
                     内容概览
                 </h2>
-                <div id="overviewGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+                <div id="overviewGrid" class="slide-overview-grid md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
                     <!-- Overview thumbnails will be generated by JavaScript -->
                 </div>
             </div>
@@ -823,10 +1108,12 @@
         let isFullscreen = false;
         let dropdownOpen = false;
         let viewMode = 'normal';
+        let collectionQuery = '';
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             renderCollections();
+            updateLibrarySummary(collections);
 
             // Check URL for collection parameter
             const urlParams = new URLSearchParams(window.location.search);
@@ -837,18 +1124,53 @@
                     openCollection(collection);
                 }
             }
+
+            document.getElementById('collectionSearchInput').addEventListener('input', (event) => {
+                collectionQuery = event.target.value.trim().toLowerCase();
+                renderCollections();
+            });
+
+            document.getElementById('slideJumpSelect').addEventListener('change', (event) => {
+                goToSlide(Number(event.target.value));
+            });
         });
+
+        function getFilteredCollections() {
+            if (!collectionQuery) return collections;
+            return collections.filter(collection => {
+                const haystack = [
+                    collection.title,
+                    collection.description,
+                    collection.slides.map(slide => `${slide.title} ${slide.desc}`).join(' ')
+                ].join(' ').toLowerCase();
+                return haystack.includes(collectionQuery);
+            });
+        }
+
+        function updateLibrarySummary(list) {
+            const totalSlides = list.reduce((sum, collection) => sum + collection.slides.length, 0);
+            document.getElementById('librarySummary').innerHTML = `
+                <span class="library-pill">集合 ${list.length}</span>
+                <span class="library-pill">页面 ${totalSlides}</span>
+                <span class="library-pill">${collectionQuery ? `关键词: ${collectionQuery}` : '支持关键词搜索'}</span>
+            `;
+        }
 
         // Render collection cards
         function renderCollections() {
             const grid = document.getElementById('collectionsGrid');
+            const filteredCollections = getFilteredCollections();
+            updateLibrarySummary(filteredCollections);
 
-            if (collections.length === 0) {
+            if (filteredCollections.length === 0) {
                 document.getElementById('emptyState').classList.remove('hidden');
+                grid.innerHTML = '';
                 return;
             }
 
-            grid.innerHTML = collections.map(collection => {
+            document.getElementById('emptyState').classList.add('hidden');
+
+            grid.innerHTML = filteredCollections.map(collection => {
                 const coverPath = encodeURI(`examples/${collection.folder}/${collection.slides[0].file}`);
                 return `
                 <div class="collection-card glass rounded-2xl overflow-hidden" onclick='openCollection(${JSON.stringify(collection).replace(/'/g, "&#39;")})'>
@@ -934,12 +1256,14 @@
             document.getElementById('viewerDescription').textContent = collection.description;
             document.getElementById('totalPages').textContent = collection.slides.length;
             document.getElementById('fullscreenTotal').textContent = collection.slides.length;
+            document.getElementById('viewerCollectionMeta').textContent = `${collection.slides.length} 页 · ${collection.title}`;
 
             // Set theme color
             document.getElementById('progressBar').style.background = `linear-gradient(90deg, ${collection.color} 0%, ${collection.color}cc 100%)`;
 
             generateThumbnails();
             generateOverview();
+            populateSlideJump();
             updateSlide();
             renderDropdown();
 
@@ -948,7 +1272,8 @@
 
         // Switch collection from dropdown
         function switchCollection(collection) {
-            toggleDropdown();
+            dropdownOpen = false;
+            document.getElementById('dropdownMenu').classList.add('hidden');
             openCollection(collection);
         }
 
@@ -1027,7 +1352,8 @@
             container.innerHTML = currentCollection.slides.map((slide, index) => {
                 const slidePath = encodeURI(basePath + slide.file);
                 return `
-                <div class="glass rounded-xl p-2 shadow-md hover:shadow-lg transition-shadow cursor-pointer" 
+                <div class="glass rounded-xl p-2 shadow-md hover:shadow-lg transition-shadow cursor-pointer overview-card" 
+                     id="overview-${index}"
                      onclick="goToSlide(${index}); window.scrollTo({top: 0, behavior: 'smooth'})">
                     <object data="${slidePath}" type="image/svg+xml" class="w-full rounded-lg" style="pointer-events:none">
                         <div class="w-full h-24 flex items-center justify-center bg-gray-100">📄</div>
@@ -1038,6 +1364,15 @@
                     </div>
                 </div>
             `}).join('');
+        }
+
+        function populateSlideJump() {
+            if (!currentCollection) return;
+            const select = document.getElementById('slideJumpSelect');
+            select.innerHTML = currentCollection.slides.map((slide, index) => `
+                <option value="${index}">${index + 1}. ${slide.title}</option>
+            `).join('');
+            select.value = String(currentSlide);
         }
 
         // Update slide display
@@ -1067,6 +1402,8 @@
             // Update slide info
             document.getElementById('slideTitle').textContent = slide.title;
             document.getElementById('slideDesc').textContent = slide.desc;
+            document.getElementById('viewerSlideMeta').textContent = `当前第 ${currentSlide + 1} / ${currentCollection.slides.length} 页`;
+            document.getElementById('slideJumpSelect').value = String(currentSlide);
 
             // Update progress bar
             const progress = ((currentSlide + 1) / currentCollection.slides.length) * 100;
@@ -1089,6 +1426,11 @@
                         thumb.classList.add('border-transparent');
                     }
                 }
+
+                const overview = document.getElementById(`overview-${i}`);
+                if (overview) {
+                    overview.classList.toggle('overview-card-active', i === currentSlide);
+                }
             });
         }
 
@@ -1108,6 +1450,9 @@
         }
 
         function goToSlide(index) {
+            if (!currentCollection || Number.isNaN(index) || index < 0 || index >= currentCollection.slides.length) {
+                return;
+            }
             currentSlide = index;
             updateSlide();
         }

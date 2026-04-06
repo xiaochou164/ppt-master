@@ -1,0 +1,21 @@
+{
+  "profiles": [
+    {
+      "id": "01d0001c0f80445ca5d77704653cd69f",
+      "name": "glm-5",
+      "backend": "openai",
+      "model": "glm-5",
+      "base_url": "https://maas-api.ai-yuanjing.com/openapi/compatible-mode/v1",
+      "api_key": "sk-b4e5e75a8cb74843ad82ceaed6f35ae7"
+    },
+    {
+      "id": "91128551a0e74c7caef3ce2943db0c25",
+      "name": "kimi2.5",
+      "backend": "openai",
+      "model": "moonshotai/Kimi-K2.5",
+      "base_url": "https://api-inference.modelscope.cn/v1",
+      "api_key": "ms-182d7762-07d5-4319-adfb-c5d56db39da4"
+    }
+  ],
+  "selected_profile_id": "91128551a0e74c7caef3ce2943db0c25"
+}

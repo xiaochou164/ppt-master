@@ -1,0 +1,80 @@
+<svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1280" height="720" fill="#FFFFFF"/>
+  
+  <!-- Header bar -->
+  <rect x="0" y="0" width="1280" height="80" fill="#1E3A5F"/>
+  
+  <!-- Title -->
+  <text x="60" y="52" font-family="Microsoft YaHei" font-size="32" font-weight="bold" fill="#FFFFFF">七、典型应用场景</text>
+  
+  <!-- Page number -->
+  <text x="1220" y="52" font-family="Arial" font-size="18" fill="#FFFFFF" text-anchor="end">7 / 10</text>
+  
+  <!-- Decorative accent line -->
+  <rect x="60" y="100" width="80" height="4" fill="#E67E22"/>
+  
+  <!-- Application cards - Row 1 -->
+  <!-- Card 1: 医院 -->
+  <rect x="60" y="130" width="360" height="160" rx="8" fill="#F8FAFC" stroke="#4A90A4" stroke-width="2"/>
+  <use data-icon="hospital" x="80" y="150" width="40" height="40" fill="#E67E22"/>
+  <text x="130" y="180" font-family="Microsoft YaHei" font-size="24" font-weight="bold" fill="#1E3A5F">医院</text>
+  <text x="80" y="220" font-family="Microsoft YaHei" font-size="18" fill="#4A90A4">• 门诊候诊时间估计</text>
+  <text x="80" y="250" font-family="Microsoft YaHei" font-size="18" fill="#4A90A4">• 医生与诊室数量配置</text>
+  <text x="80" y="280" font-family="Microsoft YaHei" font-size="18" fill="#4A90A4">• 急诊资源调度优化</text>
+  
+  <!-- Card 2: 通信与网络 -->
+  <rect x="460" y="130" width="360" height="160" rx="8" fill="#F8FAFC" stroke="#4A90A4" stroke-width="2"/>
+  <use data-icon="network" x="480" y="150" width="40" height="40" fill="#E67E22"/>
+  <text x="530" y="180" font-family="Microsoft YaHei" font-size="24" font-weight="bold" fill="#1E3A5F">通信与网络</text>
+  <text x="480" y="220" font-family="Microsoft YaHei" font-size="18" fill="#4A90A4">• 网络拥塞分析</text>
+  <text x="480" y="250" font-family="Microsoft YaHei" font-size="18" fill="#4A90A4">• 延迟与吞吐量评估</text>
+  <text x="480" y="280" font-family="Microsoft YaHei" font-size="18" fill="#4A90A4">• 丢包概率计算</text>
+  
+  <!-- Card 3: 云计算 -->
+  <rect x="860" y="130" width="360" height="160" rx="8" fill="#F8FAFC" stroke="#4A90A4" stroke-width="2"/>
+  <use data-icon="cloud" x="880" y="150" width="40" height="40" fill="#E67E22"/>
+  <text x="930" y="180" font-family="Microsoft YaHei" font-size="24" font-weight="bold" fill="#1E3A5F">云计算与数据中心</text>
+  <text x="880" y="220" font-family="Microsoft YaHei" font-size="18" fill="#4A90A4">• 请求延迟预测</text>
+  <text x="880" y="250" font-family="Microsoft YaHei" font-size="18" fill="#4A90A4">• 虚拟机扩缩容策略</text>
+  <text x="880" y="280" font-family="Microsoft YaHei" font-size="18" fill="#4A90A4">• 负载均衡优化</text>
+  
+  <!-- Application cards - Row 2 -->
+  <!-- Card 4: 交通系统 -->
+  <rect x="60" y="320" width="360" height="160" rx="8" fill="#F8FAFC" stroke="#4A90A4" stroke-width="2"/>
+  <use data-icon="car" x="80" y="340" width="40" height="40" fill="#E67E22"/>
+  <text x="130" y="370" font-family="Microsoft YaHei" font-size="24" font-weight="bold" fill="#1E3A5F">交通系统</text>
+  <text x="80" y="410" font-family="Microsoft YaHei" font-size="18" fill="#4A90A4">• 收费站通行效率</text>
+  <text x="80" y="440" font-family="Microsoft YaHei" font-size="18" fill="#4A90A4">• 信号灯配时优化</text>
+  <text x="80" y="470" font-family="Microsoft YaHei" font-size="18" fill="#4A90A4">• 路口拥堵分析</text>
+  
+  <!-- Card 5: 制造业 -->
+  <rect x="460" y="320" width="360" height="160" rx="8" fill="#F8FAFC" stroke="#4A90A4" stroke-width="2"/>
+  <use data-icon="factory" x="480" y="340" width="40" height="40" fill="#E67E22"/>
+  <text x="530" y="370" font-family="Microsoft YaHei" font-size="24" font-weight="bold" fill="#1E3A5F">制造业与维修系统</text>
+  <text x="480" y="410" font-family="Microsoft YaHei" font-size="18" fill="#4A90A4">• 机器维修队列管理</text>
+  <text x="480" y="440" font-family="Microsoft YaHei" font-size="18" fill="#4A90A4">• 故障处理调度</text>
+  <text x="480" y="470" font-family="Microsoft YaHei" font-size="18" fill="#4A90A4">• 备件数量优化</text>
+  
+  <!-- Example case box -->
+  <rect x="860" y="320" width="360" height="160" rx="8" fill="#1E3A5F"/>
+  <text x="880" y="355" font-family="Microsoft YaHei" font-size="20" font-weight="bold" fill="#E67E22">💡 实例分析</text>
+  <text x="880" y="390" font-family="Microsoft YaHei" font-size="16" fill="#FFFFFF">维修系统优化问题：</text>
+  <text x="880" y="420" font-family="Microsoft YaHei" font-size="14" fill="#B8D4E8">• 机器到达率：λ = 42 台/天</text>
+  <text x="880" y="445" font-family="Microsoft YaHei" font-size="14" fill="#B8D4E8">• 服务率：μ = 20 台/天/人</text>
+  <text x="880" y="470" font-family="Microsoft YaHei" font-size="14" fill="#B8D4E8">• 目标：最小化总成本</text>
+  
+  <!-- Bottom summary bar -->
+  <rect x="60" y="520" width="1160" height="80" rx="8" fill="#F0F7FA" stroke="#4A90A4" stroke-width="1"/>
+  <text x="100" y="555" font-family="Microsoft YaHei" font-size="18" font-weight="bold" fill="#1E3A5F">核心价值：</text>
+  <text x="200" y="555" font-family="Microsoft YaHei" font-size="18" fill="#4A90A4">排队论为各行业的资源优化与服务质量提升提供了科学的定量分析工具</text>
+  <text x="100" y="585" font-family="Microsoft YaHei" font-size="16" fill="#4A90A4">通过 M/M/c 等模型，可在等待成本与服务成本之间找到最优平衡点</text>
+  
+  <!-- Decorative elements -->
+  <circle cx="1200" y="680" r="60" fill="#1E3A5F" fill-opacity="0.1"/>
+  <circle cx="1150" y="700" r="40" fill="#4A90A4" fill-opacity="0.1"/>
+  
+  <!-- Footer line -->
+  <rect x="60" y="680" width="200" height="3" fill="#E67E22"/>
+  <text x="280" y="685" font-family="Microsoft YaHei" font-size="12" fill="#4A90A4">排队论研究讲义</text>
+</svg>

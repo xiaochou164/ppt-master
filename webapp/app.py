@@ -11,6 +11,7 @@ import sys
 import tempfile
 import time
 from dataclasses import dataclass
+from html import escape
 from http import HTTPStatus
 from pathlib import Path
 from typing import Any, Dict, Generator, Iterable, List, Optional
@@ -22,7 +23,7 @@ import requests
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile, status
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from .database import Base, SessionLocal, engine, get_db
@@ -30,6 +31,7 @@ from .models import AuditLog, ImageModelProfile, Project, Session as SessionMode
 from .security import (
     decrypt_secret,
     encrypt_secret,
+    hash_password,
     json_dumps,
     json_loads,
     mask_api_key,
@@ -39,6 +41,7 @@ from .security import (
     session_expiry,
     slugify,
     utcnow,
+    verify_password,
 )
 from .settings import get_settings
 
@@ -48,6 +51,66 @@ Base.metadata.create_all(bind=engine)
 
 if str(settings.scripts_dir) not in sys.path:
     sys.path.insert(0, str(settings.scripts_dir))
+
+
+def _ensure_sqlite_columns() -> None:
+    if not settings.database_url.startswith("sqlite:///"):
+        return
+    try:
+        with engine.connect() as conn:
+            rows = conn.execute(text("PRAGMA table_info(users)")).fetchall()
+            columns = {row[1] for row in rows}
+            if "password_hash" not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN password_hash TEXT"))
+                conn.commit()
+    except Exception:
+        # best-effort migration for local sqlite
+        pass
+
+
+_ensure_sqlite_columns()
+
+
+def _ensure_local_admin() -> None:
+    email = settings.local_admin_email
+    password = settings.local_admin_password
+    if not email or not password:
+        return
+    normalized_email = email.strip().lower()
+    if "@" not in normalized_email:
+        return
+    subject = f"local:{normalized_email}"
+    username = normalized_email.split("@")[0]
+    display_name = settings.local_admin_name.strip() or username
+    with SessionLocal() as db:
+        user = db.execute(select(User).where(User.subject == subject)).scalar_one_or_none()
+        if user is None:
+            user = User(
+                id=new_uuid(),
+                auth_provider="local",
+                subject=subject,
+                email=normalized_email,
+                username=username,
+                display_name=display_name,
+                role="admin",
+                groups_json=json_dumps(["local-admin"]),
+                last_login_at=utcnow(),
+                password_hash=hash_password(password),
+                is_active=True,
+            )
+            db.add(user)
+        else:
+            user.email = normalized_email
+            user.username = username
+            user.display_name = display_name
+            user.role = "admin"
+            user.groups_json = json_dumps(["local-admin"])
+            user.password_hash = hash_password(password)
+            user.is_active = True
+        db.commit()
+
+
+_ensure_local_admin()
 
 from config import CANVAS_FORMATS  # type: ignore  # noqa: E402
 from project_manager import ProjectManager  # type: ignore  # noqa: E402
@@ -234,6 +297,9 @@ def public_user_payload(user: User) -> Dict[str, Any]:
         "display_name": user.display_name,
         "role": user.role,
         "groups": json_loads(user.groups_json, []),
+        "auth_provider": user.auth_provider,
+        "has_password": bool(user.password_hash),
+        "is_active": user.is_active,
         "auth_enabled": settings.auth_enabled,
     }
 
@@ -251,6 +317,7 @@ def admin_user_payload(user: User) -> Dict[str, Any]:
         "last_login_at": user.last_login_at.strftime("%Y-%m-%d %H:%M:%S") if user.last_login_at else "",
         "created_at": user.created_at.strftime("%Y-%m-%d %H:%M:%S"),
         "updated_at": user.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
+        "has_password": bool(user.password_hash),
         "is_active": user.is_active,
     }
 
@@ -1135,8 +1202,6 @@ def require_user(request: Request, db: Session = Depends(get_db)) -> User:
     user = get_current_user_optional(request, db)
     if user is not None:
         return user
-    if not settings.auth_enabled:
-        return get_or_create_mock_user(db)
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
 
 
@@ -1186,6 +1251,40 @@ def get_auth_config_errors() -> List[str]:
     if not settings.public_base_url:
         errors.append("PPT_MASTER_PUBLIC_BASE_URL is recommended for stable Authentik callback URLs")
     return errors
+
+
+def normalize_next_path(raw_next: str | None) -> str:
+    value = (raw_next or "").strip()
+    if not value.startswith("/") or value.startswith("//"):
+        return "/"
+    return value
+
+
+def login_redirect_url(
+    *,
+    mode: str | None = None,
+    error: str | None = None,
+    message: str | None = None,
+    email: str | None = None,
+    display_name: str | None = None,
+    next_path: str | None = None,
+) -> str:
+    params: Dict[str, str] = {}
+    if mode in {"login", "register"}:
+        params["mode"] = mode
+    if error:
+        params["error"] = error
+    if message:
+        params["message"] = message
+    if email:
+        params["email"] = email
+    if display_name:
+        params["display_name"] = display_name
+    safe_next = normalize_next_path(next_path)
+    if safe_next != "/":
+        params["next"] = safe_next
+    query = urlencode(params)
+    return f"/login?{query}" if query else "/login"
 
 
 def auth_status_payload(user: User | None) -> Dict[str, Any]:
@@ -1328,6 +1427,11 @@ def healthz() -> Dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/favicon.ico")
+def favicon():
+    return FileResponse(settings.static_dir / "favicon.svg", media_type="image/svg+xml")
+
+
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
     response = await call_next(request)
@@ -1351,91 +1455,340 @@ async def auth_middleware(request: Request, call_next):
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request, db: Session = Depends(get_db)):
     user = get_current_user_optional(request, db)
-    if settings.auth_enabled and user is None:
-        return RedirectResponse(url="/login", status_code=302)
+    if user is None:
+        return RedirectResponse(url=login_redirect_url(next_path="/"), status_code=302)
     return FileResponse(settings.static_dir / "index.html")
+
+
+@app.get("/admin", response_class=HTMLResponse)
+def admin_page(request: Request, db: Session = Depends(get_db)):
+    user = get_current_user_optional(request, db)
+    if user is None:
+        return RedirectResponse(url=login_redirect_url(next_path="/admin"), status_code=302)
+    if user.role != "admin":
+        return RedirectResponse(url="/", status_code=302)
+    return FileResponse(settings.static_dir / "admin.html")
 
 
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request: Request, db: Session = Depends(get_db)):
     user = get_current_user_optional(request, db)
     if user is not None:
-        return RedirectResponse(url="/", status_code=302)
+        return RedirectResponse(url=normalize_next_path(request.query_params.get("next")), status_code=302)
 
     auth_status = auth_status_payload(None)
-    auth_hint = "已启用 Authentik 单点登录" if settings.auth_enabled else "当前为本地开发模式，点击下方按钮进入"
-    button_label = "使用 Authentik 登录" if settings.auth_enabled else "进入本地调试会话"
-    login_note = "登录后项目、模型配置和文件访问都会按用户隔离。" if settings.auth_enabled else "当前会使用本地 mock 管理员身份进入控制台。"
+    mode = request.query_params.get("mode", "login").strip().lower()
+    if mode not in {"login", "register"}:
+        mode = "login"
+    next_path = normalize_next_path(request.query_params.get("next"))
+    feedback_error = request.query_params.get("error", "").strip()
+    feedback_message = request.query_params.get("message", "").strip()
+    email_prefill = request.query_params.get("email", "").strip()
+    display_name_prefill = request.query_params.get("display_name", "").strip()
+    email_prefill_html = escape(email_prefill)
+    display_name_prefill_html = escape(display_name_prefill)
+    next_path_html = escape(next_path)
+    auth_hint = "当前通过统一登录进入工作台" if settings.auth_enabled else "当前使用本地登录，适合本机体验和验收"
+    button_label = "使用 Authentik 登录"
+    login_note = "登录后，项目、模型设置和文件访问都会按账号隔离。" if settings.auth_enabled else "本地登录适合开发和验收环境，账号数据只在当前环境生效。"
+    auth_mode_label = "统一认证 / Authentik" if settings.auth_enabled else "本地开发登录"
+    auth_mode = "sso" if settings.auth_enabled else "local"
+    capability_items = [
+        "用户隔离",
+        "项目级访问上下文",
+        "模型配置随账号保存",
+    ]
+    if settings.auth_enabled:
+        capability_items.append("管理员组自动映射")
+    else:
+        capability_items.append("适合本机演示与验收")
+    capability_html = "".join(f"<li>{item}</li>" for item in capability_items)
     config_block = ""
     if auth_status["auth_enabled"]:
         if auth_status["auth_ready"]:
             config_block = f"""
-        <div class="detail-block" style="padding:16px; margin-top: 12px;">
-          <p class="detail-title">AuthentiK / OIDC</p>
+        <div class="detail-block auth-config-card surface-card">
+          <p class="detail-title">统一登录配置</p>
           <p class="helper">Issuer：{auth_status["issuer_url"] or "-"}</p>
           <p class="helper">Callback：{auth_status["callback_url"]}</p>
           <p class="helper">管理员组：{", ".join(auth_status["admin_groups"]) if auth_status["admin_groups"] else "-"}</p>
-          <p class="helper">同步策略：{auth_status["sync_mode"]}</p>
+          <p class="helper">同步方式：{auth_status["sync_mode"]}</p>
         </div>
 """
         else:
             error_items = "".join(f"<li>{item}</li>" for item in auth_status["config_errors"])
             config_block = f"""
-        <div class="status-card status-error" style="margin-top: 12px;">
-          <strong>Authentik 配置未完成</strong>
+        <div class="status-card status-error auth-status-card">
+          <strong>统一登录还没有配置完成</strong>
           <ul class="context-list">{error_items}</ul>
-          <p class="helper">请先修正环境变量，再从当前页面重新发起登录。</p>
+          <p class="helper">请先补齐配置项，再回到这里继续登录。</p>
         </div>
 """
+    sso_block = ""
+    local_block = ""
+    if settings.auth_enabled:
+        sso_block = f"""
+        <a class="button button-secondary button-link" href="/auth/login">{button_label}</a>
+        <p class="helper">{login_note}</p>
+{config_block}
+"""
+    else:
+        mode_login_active = "auth-tab-active" if mode == "login" else ""
+        mode_register_active = "auth-tab-active" if mode == "register" else ""
+        feedback_block = ""
+        if feedback_error:
+            feedback_block = f"""
+        <div class="status-card status-error auth-status-card">
+          <strong>登录未完成</strong>
+          <p class="helper">{escape(feedback_error)}</p>
+        </div>
+"""
+        elif feedback_message:
+            feedback_block = f"""
+        <div class="status-card status-ok auth-status-card">
+          <strong>操作成功</strong>
+          <p class="helper">{escape(feedback_message)}</p>
+        </div>
+"""
+        local_block = f"""
+        {feedback_block}
+        <div class="auth-tabs" role="tablist" aria-label="本地账号操作">
+          <a class="auth-tab {mode_login_active}" href="{login_redirect_url(mode='login', email=email_prefill, next_path=next_path)}">登录已有账号</a>
+          <a class="auth-tab {mode_register_active}" href="{login_redirect_url(mode='register', email=email_prefill, display_name=display_name_prefill, next_path=next_path)}">创建本地账号</a>
+        </div>
+        <div class="auth-split-layout">
+          <form class="panel surface-card login-form-card {'auth-form-active' if mode == 'login' else 'auth-form-muted'}" method="post" action="/auth/local-login">
+            <input name="next" type="hidden" value="{next_path_html}">
+            <div class="field">
+              <span>邮箱</span>
+              <input name="email" type="email" required autocomplete="username" value="{email_prefill_html}" placeholder="例如 admin@example.com" autofocus>
+            </div>
+            <div class="field password-field">
+              <span>密码</span>
+              <div class="password-input-wrap">
+                <input name="password" type="password" required minlength="6" autocomplete="current-password" placeholder="请输入密码">
+                <button class="button button-ghost button-small password-toggle" type="button" data-password-toggle>显示</button>
+              </div>
+            </div>
+            <div class="action-row auth-actions-compact">
+              <button class="button button-secondary" type="submit">进入控制台</button>
+            </div>
+            <p class="helper auth-note">已有账号就直接登录；如果还没有账号，请切到“创建本地账号”。</p>
+          </form>
+          <form class="panel surface-card login-form-card {'auth-form-active' if mode == 'register' else 'auth-form-muted'}" method="post" action="/auth/local-register">
+            <input name="next" type="hidden" value="{next_path_html}">
+            <div class="field">
+              <span>邮箱</span>
+              <input name="email" type="email" required autocomplete="username" value="{email_prefill_html}" placeholder="例如 teammate@example.com">
+            </div>
+            <div class="field password-field">
+              <span>密码</span>
+              <div class="password-input-wrap">
+                <input name="password" type="password" required minlength="6" autocomplete="new-password" placeholder="至少 6 位">
+                <button class="button button-ghost button-small password-toggle" type="button" data-password-toggle>显示</button>
+              </div>
+            </div>
+            <div class="field">
+              <span>显示名</span>
+              <input name="display_name" type="text" value="{display_name_prefill_html}" placeholder="可选，用于页面展示">
+            </div>
+            <div class="action-row auth-actions-compact">
+              <button class="button button-ghost" type="submit">创建账号</button>
+            </div>
+            <p class="helper auth-note">自助注册默认创建普通用户；管理员账号请通过环境变量或后台用户管理创建。</p>
+          </form>
+        </div>
+        <p class="helper auth-note">{login_note}</p>
+"""
+
     html = f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PPT Master 登录</title>
+  <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="stylesheet" href="/static/app.css">
 </head>
-<body>
+<body class="auth-page">
   <div class="ambient ambient-a"></div>
   <div class="ambient ambient-b"></div>
-  <main class="shell" style="max-width: 720px; padding-top: 72px;">
-    <section class="panel" style="padding: 32px;">
-      <p class="section-kicker">Login</p>
-      <h1 style="margin-top: 0;">PPT Master Web Console</h1>
-      <p class="helper" style="font-size: 1rem; margin-bottom: 20px;">{auth_hint}</p>
+  <main class="shell auth-shell">
+    <section class="panel surface-card auth-panel">
+      <div class="auth-header">
+        <p class="section-kicker">Login</p>
+        <div class="auth-meta-row">
+          <span class="auth-mode-badge" data-mode="{auth_mode}">{auth_mode_label}</span>
+        </div>
+        <h1 class="auth-title">进入 PPT Master</h1>
+        <p class="helper auth-lead">{auth_hint}</p>
+        <ul class="auth-capability-list">{capability_html}</ul>
+      </div>
       <div class="stack">
-        <a class="button button-secondary" href="/auth/login" style="text-decoration:none; display:inline-flex; justify-content:center;">{button_label}</a>
-        <p class="helper">{login_note}</p>
-{config_block}
+{sso_block}{local_block}
       </div>
     </section>
   </main>
+  <script>
+    document.querySelectorAll("[data-password-toggle]").forEach((button) => {{
+      button.addEventListener("click", () => {{
+        const wrap = button.closest(".password-input-wrap");
+        const input = wrap?.querySelector("input");
+        if (!input) return;
+        const nextType = input.type === "password" ? "text" : "password";
+        input.type = nextType;
+        button.textContent = nextType === "password" ? "显示" : "隐藏";
+      }});
+    }});
+    document.querySelectorAll('form[action="/auth/local-login"], form[action="/auth/local-register"]').forEach((form) => {{
+      form.addEventListener("keydown", (event) => {{
+        if (event.key !== "Enter") return;
+        const target = event.target;
+        if (!(target instanceof HTMLInputElement)) return;
+        if (target.type === "submit") return;
+        const inputs = Array.from(form.querySelectorAll("input:not([type=hidden])")).filter((item) => !item.disabled);
+        const currentIndex = inputs.indexOf(target);
+        if (currentIndex >= 0 && currentIndex < inputs.length - 1) {{
+          event.preventDefault();
+          inputs[currentIndex + 1].focus();
+        }}
+      }});
+    }});
+  </script>
 </body>
 </html>"""
     return HTMLResponse(html)
 
 
+@app.post("/auth/local-login")
+def auth_local_login(
+    request: Request,
+    response: Response,
+    email: str = Form(...),
+    password: str = Form(...),
+    next: str = Form("/"),
+    db: Session = Depends(get_db),
+):
+    if settings.auth_enabled:
+        raise HTTPException(status_code=404, detail="Local login is disabled")
+
+    normalized_email = email.strip().lower()
+    if "@" not in normalized_email:
+        return RedirectResponse(
+            url=login_redirect_url(mode="login", error="请输入有效邮箱地址。", email=normalized_email, next_path=next),
+            status_code=302,
+        )
+    if not password or len(password) < 6:
+        return RedirectResponse(
+            url=login_redirect_url(mode="login", error="密码至少需要 6 位。", email=normalized_email, next_path=next),
+            status_code=302,
+        )
+
+    subject = f"local:{normalized_email}"
+    user = db.execute(select(User).where(User.subject == subject)).scalar_one_or_none()
+    if user is None:
+        return RedirectResponse(
+            url=login_redirect_url(
+                mode="register",
+                error="这个账号还不存在，请先创建本地账号。",
+                email=normalized_email,
+                next_path=next,
+            ),
+            status_code=302,
+        )
+    if not user.is_active:
+        audit(db, user.id, "login_denied", "session", "", {"reason": "user disabled"})
+        return RedirectResponse(
+            url=login_redirect_url(mode="login", error="该账号已被禁用，请联系管理员。", email=normalized_email, next_path=next),
+            status_code=302,
+        )
+    if not user.password_hash or not verify_password(password, user.password_hash):
+        audit(db, user.id, "login_denied", "session", "", {"reason": "invalid_password"})
+        return RedirectResponse(
+            url=login_redirect_url(mode="login", error="邮箱或密码不正确。", email=normalized_email, next_path=next),
+            status_code=302,
+        )
+    user.last_login_at = utcnow()
+
+    session = ensure_session(db, request, response)
+    session.user_id = user.id
+    session.expires_at = session_expiry(settings.session_ttl_seconds)
+    session.data_json = json_dumps(build_activity_payload(request))
+    db.commit()
+    audit(db, user.id, "login_local", "session", session.id)
+    redirect = RedirectResponse(normalize_next_path(next), status_code=302)
+    redirect.set_cookie(
+        settings.session_cookie_name,
+        session.id,
+        httponly=True,
+        secure=settings.session_secure_cookie,
+        samesite="lax",
+        max_age=settings.session_ttl_seconds,
+        path="/",
+    )
+    return redirect
+
+
+@app.post("/auth/local-register")
+def auth_local_register(
+    email: str = Form(...),
+    password: str = Form(...),
+    display_name: str = Form(""),
+    next: str = Form("/"),
+    db: Session = Depends(get_db),
+):
+    if settings.auth_enabled:
+        raise HTTPException(status_code=404, detail="Local registration is disabled")
+
+    normalized_email = email.strip().lower()
+    safe_next = normalize_next_path(next)
+    if "@" not in normalized_email:
+        return RedirectResponse(
+            url=login_redirect_url(mode="register", error="请输入有效邮箱地址。", email=normalized_email, display_name=display_name, next_path=safe_next),
+            status_code=302,
+        )
+    if not password or len(password) < 6:
+        return RedirectResponse(
+            url=login_redirect_url(mode="register", error="密码至少需要 6 位。", email=normalized_email, display_name=display_name, next_path=safe_next),
+            status_code=302,
+        )
+
+    subject = f"local:{normalized_email}"
+    existing = db.execute(select(User).where(User.subject == subject)).scalar_one_or_none()
+    if existing is not None:
+        return RedirectResponse(
+            url=login_redirect_url(mode="login", error="这个邮箱已经注册过了，请直接登录。", email=normalized_email, next_path=safe_next),
+            status_code=302,
+        )
+
+    username = normalized_email.split("@")[0]
+    display_name_value = display_name.strip() or username
+    user = User(
+        id=new_uuid(),
+        auth_provider="local",
+        subject=subject,
+        email=normalized_email,
+        username=username,
+        display_name=display_name_value,
+        role="user",
+        groups_json="[]",
+        last_login_at=None,
+        password_hash=hash_password(password),
+        is_active=True,
+    )
+    db.add(user)
+    db.commit()
+    audit(db, user.id, "register_local", "user", user.id, {"email": normalized_email})
+    return RedirectResponse(
+        url=login_redirect_url(mode="login", message="账号已创建，现在可以直接登录。", email=normalized_email, next_path=safe_next),
+        status_code=302,
+    )
+
+
 @app.get("/auth/login")
 def auth_login(request: Request, response: Response, db: Session = Depends(get_db)):
     if not settings.auth_enabled:
-        user = get_or_create_mock_user(db)
-        session = ensure_session(db, request, response)
-        session.user_id = user.id
-        session.expires_at = session_expiry(settings.session_ttl_seconds)
-        session.data_json = json_dumps(build_activity_payload(request))
-        db.commit()
-        audit(db, user.id, "login_mock", "session", session.id)
-        redirect = RedirectResponse("/", status_code=302)
-        redirect.set_cookie(
-            settings.session_cookie_name,
-            session.id,
-            httponly=True,
-            secure=settings.session_secure_cookie,
-            samesite="lax",
-            max_age=settings.session_ttl_seconds,
-            path="/",
-        )
-        return redirect
+        return RedirectResponse(url=login_redirect_url(mode="login"), status_code=302)
 
     config_errors = get_auth_config_errors()
     if config_errors:
@@ -1447,21 +1800,28 @@ def auth_login(request: Request, response: Response, db: Session = Depends(get_d
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PPT Master 登录配置错误</title>
+  <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="stylesheet" href="/static/app.css">
 </head>
-<body>
+<body class="auth-page">
   <div class="ambient ambient-a"></div>
   <div class="ambient ambient-b"></div>
-  <main class="shell" style="max-width: 760px; padding-top: 72px;">
-    <section class="panel" style="padding: 32px;">
-      <p class="section-kicker">Auth Error</p>
-      <h1 style="margin-top: 0;">Authentik 配置未完成</h1>
-      <div class="status-card status-error" style="margin-top: 16px;">
-        <strong>当前还不能发起统一认证</strong>
+  <main class="shell auth-shell">
+    <section class="panel surface-card auth-panel">
+      <div class="auth-header">
+        <p class="section-kicker">Auth Error</p>
+        <div class="auth-meta-row">
+          <span class="auth-mode-badge" data-mode="sso">统一认证 / Authentik</span>
+        </div>
+        <h1 class="auth-title">统一登录暂时不可用</h1>
+        <p class="helper">当前页面会列出缺失项，方便你直接检查登录配置。</p>
+      </div>
+      <div class="status-card status-error auth-status-card-lg">
+        <strong>现在还不能开始统一登录</strong>
         <ul class="context-list">{error_html}</ul>
       </div>
-      <div class="action-row" style="margin-top: 16px;">
-        <a class="button button-secondary" href="/login" style="text-decoration:none;">返回登录页</a>
+      <div class="action-row auth-actions-spacious">
+        <a class="button button-secondary button-link" href="/login">返回登录页</a>
       </div>
     </section>
   </main>
@@ -1535,6 +1895,45 @@ def api_me(user: User = Depends(require_user)):
     return {"user": public_user_payload(user)}
 
 
+@app.patch("/api/me")
+def api_update_me(
+    body: Dict[str, Any],
+    user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    display_name = body.get("display_name")
+    if display_name is not None:
+        display_name_value = str(display_name).strip()
+        if not display_name_value:
+            raise HTTPException(status_code=400, detail="Display name is required")
+        user.display_name = display_name_value
+
+    password = body.get("password")
+    current_password = body.get("current_password")
+    if password is not None:
+        if user.auth_provider != "local":
+            raise HTTPException(status_code=400, detail="Password is managed by your identity provider")
+        next_password = str(password).strip()
+        current_password_value = str(current_password or "").strip()
+        if len(next_password) < 6:
+            raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+        if not user.password_hash or not verify_password(current_password_value, user.password_hash):
+            raise HTTPException(status_code=400, detail="Current password is incorrect")
+        user.password_hash = hash_password(next_password)
+
+    db.commit()
+    db.refresh(user)
+    audit(
+        db,
+        user.id,
+        "update_self",
+        "user",
+        user.id,
+        {"display_name": user.display_name, "password_changed": password is not None},
+    )
+    return {"user": public_user_payload(user)}
+
+
 @app.get("/api/auth/status")
 def api_auth_status(request: Request, db: Session = Depends(get_db)):
     user = get_current_user_optional(request, db)
@@ -1546,6 +1945,7 @@ def api_admin_users(
     q: str | None = None,
     role: str | None = None,
     status: str | None = None,
+    provider: str | None = None,
     limit: int = 50,
     offset: int = 0,
     admin: User = Depends(require_admin),
@@ -1569,6 +1969,10 @@ def api_admin_users(
             stmt = stmt.where(User.is_active.is_(True))
         elif status_value == "disabled":
             stmt = stmt.where(User.is_active.is_(False))
+    if provider:
+        provider_value = provider.strip().lower()
+        if provider_value in {"local", "authentik", "mock", "migration"}:
+            stmt = stmt.where(User.auth_provider == provider_value)
 
     total = db.execute(select(func.count()).select_from(stmt.subquery())).scalar_one()
     users = list(db.execute(stmt.order_by(User.created_at.desc()).limit(limit).offset(offset)).scalars())
@@ -1578,6 +1982,50 @@ def api_admin_users(
         "limit": limit,
         "offset": offset,
     }
+
+
+@app.post("/api/admin/users")
+def api_admin_create_user(
+    body: Dict[str, Any],
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    email = str(body.get("email", "")).strip().lower()
+    password = str(body.get("password", "")).strip()
+    display_name = str(body.get("display_name", "")).strip()
+    role = str(body.get("role", "user")).strip().lower()
+
+    if "@" not in email:
+        raise HTTPException(status_code=400, detail="Invalid email address")
+    if len(password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    if role not in {"admin", "user"}:
+        raise HTTPException(status_code=400, detail="Invalid role")
+
+    subject = f"local:{email}"
+    existing = db.execute(select(User).where(User.subject == subject)).scalar_one_or_none()
+    if existing is not None:
+        raise HTTPException(status_code=400, detail="A local user with this email already exists")
+
+    username = email.split("@")[0]
+    user = User(
+        id=new_uuid(),
+        auth_provider="local",
+        subject=subject,
+        email=email,
+        username=username,
+        display_name=display_name or username,
+        role=role,
+        groups_json=json_dumps(["local-admin"] if role == "admin" else []),
+        last_login_at=None,
+        password_hash=hash_password(password),
+        is_active=True,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    audit(db, admin.id, "create_user", "user", user.id, {"email": email, "role": role})
+    return {"user": admin_user_payload(user)}
 
 
 @app.get("/api/admin/users/{user_id}")
@@ -1674,9 +2122,30 @@ def api_admin_update_user(
             raise HTTPException(status_code=400, detail="You cannot disable yourself")
         target.is_active = is_active
 
+    password = body.get("password")
+    if password is not None:
+        password_value = str(password).strip()
+        if target.auth_provider != "local":
+            raise HTTPException(status_code=400, detail="Only local users can reset passwords here")
+        if len(password_value) < 6:
+            raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+        target.password_hash = hash_password(password_value)
+
     db.commit()
     db.refresh(target)
-    audit(db, admin.id, "update", "user", target.id, {"role": target.role, "is_active": target.is_active})
+    audit(
+        db,
+        admin.id,
+        "update",
+        "user",
+        target.id,
+        {
+            "role": target.role,
+            "is_active": target.is_active,
+            "groups": json_loads(target.groups_json, []),
+            "password_reset": password is not None,
+        },
+    )
     return {"user": admin_user_payload(target)}
 
 

@@ -1,0 +1,55 @@
+<svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1280" height="720" fill="#FFFFFF"/>
+  
+  <!-- Left decorative panel -->
+  <rect x="0" y="0" width="360" height="720" fill="#1E3A5F"/>
+  
+  <!-- Accent stripe -->
+  <rect x="360" y="0" width="12" height="720" fill="#E67E22"/>
+  
+  <!-- Decorative circles on left panel -->
+  <circle cx="180" cy="180" r="120" fill="#4A90A4" fill-opacity="0.15"/>
+  <circle cx="280" cy="540" r="80" fill="#4A90A4" fill-opacity="0.1"/>
+  <circle cx="80" cy="400" r="60" fill="#E67E22" fill-opacity="0.2"/>
+  
+  <!-- Queue icon representation -->
+  <g transform="translate(90, 280)">
+    <circle cx="0" cy="0" r="25" fill="#4A90A4" fill-opacity="0.6"/>
+    <circle cx="60" cy="0" r="25" fill="#4A90A4" fill-opacity="0.5"/>
+    <circle cx="120" cy="0" r="25" fill="#4A90A4" fill-opacity="0.4"/>
+    <rect x="170" y="-30" width="60" height="60" rx="8" fill="#E67E22" fill-opacity="0.7"/>
+    <path d="M200 -15 L200 15 M185 0 L215 0" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>
+  </g>
+  
+  <!-- Main title -->
+  <text x="480" y="280" font-family="Microsoft YaHei, SimHei, Arial" font-size="72" font-weight="bold" fill="#1E3A5F">排队论研究讲义</text>
+  
+  <!-- English subtitle -->
+  <text x="480" y="340" font-family="Arial, Georgia" font-size="28" fill="#4A90A4">Queueing Theory Research Lecture Notes</text>
+  
+  <!-- Decorative line -->
+  <rect x="480" y="380" width="200" height="4" rx="2" fill="#E67E22"/>
+  
+  <!-- Description text -->
+  <text x="480" y="450" font-family="Microsoft YaHei, SimSun" font-size="24" fill="#555555">运筹学与概率论的重要分支</text>
+  <text x="480" y="490" font-family="Microsoft YaHei, SimSun" font-size="24" fill="#555555">研究顾客到达—等待—服务—离开的随机过程</text>
+  
+  <!-- Key topics -->
+  <g transform="translate(480, 540)">
+    <rect x="0" y="0" width="140" height="36" rx="18" fill="#1E3A5F" fill-opacity="0.1"/>
+    <text x="70" y="24" font-family="Microsoft YaHei" font-size="16" fill="#1E3A5F" text-anchor="middle">性能分析</text>
+    
+    <rect x="160" y="0" width="140" height="36" rx="18" fill="#4A90A4" fill-opacity="0.15"/>
+    <text x="230" y="24" font-family="Microsoft YaHei" font-size="16" fill="#4A90A4" text-anchor="middle">系统优化</text>
+    
+    <rect x="320" y="0" width="140" height="36" rx="18" fill="#E67E22" fill-opacity="0.15"/>
+    <text x="390" y="24" font-family="Microsoft YaHei" font-size="16" fill="#E67E22" text-anchor="middle">资源配置</text>
+  </g>
+  
+  <!-- Page number -->
+  <text x="1240" y="690" font-family="Arial" font-size="16" fill="#999999" text-anchor="end">1 / 10</text>
+  
+  <!-- Bottom decorative line -->
+  <rect x="480" y="650" width="600" height="2" fill="#E5E5E5"/>
+</svg>
