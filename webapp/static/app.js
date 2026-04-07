@@ -231,6 +231,8 @@ const state = {
   busy: false,
 };
 
+let skipBeforeUnload = false;
+
 const elements = {
   heroStatusPill: document.getElementById("heroStatusPill"),
   heroTitle: document.getElementById("heroTitle"),
@@ -3629,7 +3631,6 @@ function renderUserBadge() {
     elements.openAccountSettingsButton?.classList.add("hidden");
     elements.logoutButton.classList.add("hidden");
     elements.openAdminPanelButton?.classList.add("hidden");
-    document.body.classList.remove("is-admin", "is-user");
     return;
   }
   elements.userBadge.textContent = `${state.user.display_name || state.user.username} · ${state.user.role}`;
@@ -3643,8 +3644,6 @@ function renderUserBadge() {
       elements.openAdminPanelButton.classList.add("hidden");
     }
   }
-  document.body.classList.toggle("is-admin", state.user.role === "admin");
-  document.body.classList.toggle("is-user", state.user.role !== "admin");
 }
 
 async function logout() {
@@ -5882,6 +5881,7 @@ async function bootstrap() {
     setupPasswordToggles(document);
     setupInlineValidation(document);
     window.addEventListener("beforeunload", (event) => {
+      if (skipBeforeUnload) return;
       if (
         hasUnsavedModelConfigChanges()
         || hasUnsavedImageModelChanges()
@@ -5904,6 +5904,7 @@ async function bootstrap() {
     elements.openModelConfigButton?.addEventListener("click", openModelConfigModal);
     elements.openAccountSettingsButton?.addEventListener("click", openAccountSettingsModal);
     elements.logoutButton?.addEventListener("click", logout);
+    elements.openAdminPanelButton?.addEventListener("click", () => { skipBeforeUnload = true; });
     elements.closeModelConfigButton?.addEventListener("click", closeModelConfigModal);
     elements.closeAccountSettingsButton?.addEventListener("click", closeAccountSettingsModal);
     elements.clearLogButton?.addEventListener("click", () => {
