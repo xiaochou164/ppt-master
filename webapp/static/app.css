@@ -266,6 +266,93 @@ body.modal-open {
   white-space: nowrap;
 }
 
+body:not(.admin-page):not(.auth-page) .hero {
+  padding: 12px 24px 4px;
+}
+
+body:not(.admin-page):not(.auth-page) .hero-shell {
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
+
+body:not(.admin-page):not(.auth-page) .hero-copy {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+body:not(.admin-page):not(.auth-page) .eyebrow,
+body:not(.admin-page):not(.auth-page) .section-kicker,
+body:not(.admin-page):not(.auth-page) .hero h1,
+body:not(.admin-page):not(.auth-page) .hero-stats {
+  display: none;
+}
+
+body:not(.admin-page):not(.auth-page) .hero-status-pill {
+  height: 24px;
+  padding: 0 9px;
+  font-size: 0.68rem;
+  flex: 0 0 auto;
+}
+
+body:not(.admin-page):not(.auth-page) .hero-text {
+  max-width: none;
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1 1 auto;
+  color: color-mix(in srgb, var(--text) 72%, var(--muted));
+}
+
+body:not(.admin-page):not(.auth-page) .hero-progress {
+  max-width: 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+body:not(.admin-page):not(.auth-page) .hero-progress-track {
+  height: 6px;
+}
+
+body:not(.admin-page):not(.auth-page) .hero-progress-text {
+  font-size: 0.7rem;
+}
+
+body:not(.admin-page):not(.auth-page) .hero-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+body:not(.admin-page):not(.auth-page) .hero-actions-group {
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+body:not(.admin-page):not(.auth-page) .hero-actions-group-meta {
+  opacity: 1;
+  padding-right: 2px;
+}
+
+body:not(.admin-page):not(.auth-page) .hero-actions .button {
+  padding: 6px 9px;
+  font-size: 0.76rem;
+}
+
+body:not(.admin-page):not(.auth-page) .theme-picker {
+  gap: 4px;
+  font-size: 0.64rem;
+  white-space: nowrap;
+}
+
 .button-block {
   width: 100%;
 }
@@ -704,12 +791,6 @@ body.modal-open {
   font-size: 0.76rem;
 }
 
-.is-user .theme-select {
-  min-width: 78px;
-  padding: 6px 26px 6px 8px;
-  font-size: 0.76rem;
-}
-
 .is-user #userBadge {
   font-size: 0.72rem;
   padding: 6px 8px;
@@ -1006,9 +1087,9 @@ body.modal-open {
 }
 
 .flow-shell {
-  padding: 6px 10px 8px;
+  padding: 4px 8px 6px;
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
 .flow-shell .section-kicker {
@@ -1023,8 +1104,8 @@ body.modal-open {
 .context-card,
 .context-empty {
   display: grid;
-  gap: var(--space-2);
-  padding: 9px 11px;
+  gap: 4px;
+  padding: 7px 9px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background:
@@ -1054,53 +1135,68 @@ body.modal-open {
 }
 
 .context-grid {
-  grid-template-columns: minmax(0, 1.7fr) minmax(200px, 0.8fr);
-  align-items: start;
-  gap: 6px;
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+  align-items: center;
+  gap: 8px;
 }
 
-.context-top {
+.context-main {
   display: flex;
-  justify-content: space-between;
-  gap: 6px;
-  align-items: start;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
+.context-primary {
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .context-title {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.92rem;
   overflow-wrap: anywhere;
+  line-height: 1.2;
 }
 
 .context-text {
   margin: 2px 0 0;
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: 0.76rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .context-summary {
-  padding: 7px 9px;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 5px 8px;
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--surface-spot) 96%, transparent);
   border: 1px solid var(--border);
 }
 
 .context-summary strong {
-  font-size: 1rem;
+  font-size: 0.9rem;
 }
 
 .context-summary span,
 .context-summary-label {
   color: var(--muted);
-  font-size: 0.74rem;
+  font-size: 0.7rem;
 }
 
 .progress-track {
-  width: 100%;
+  width: 132px;
   height: 6px;
   border-radius: 999px;
   background: var(--border);
   overflow: hidden;
+  flex: 0 0 auto;
 }
 
 .progress-fill {
@@ -1124,6 +1220,45 @@ body.modal-open {
 
 .context-blockers .context-summary-label {
   font-size: 0.7rem;
+}
+
+.context-side {
+  display: grid;
+  justify-items: end;
+  align-content: center;
+  gap: 5px;
+  width: 100%;
+  min-width: 260px;
+  max-width: 100%;
+}
+
+.context-blocker-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  color: var(--muted);
+  font-size: 0.72rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.context-blocker-inline span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.context-actions {
+  flex-shrink: 0;
+}
+
+.context-main .badge-row {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .badge-row,

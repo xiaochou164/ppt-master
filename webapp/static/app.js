@@ -235,9 +235,6 @@ const elements = {
   heroStatusPill: document.getElementById("heroStatusPill"),
   heroTitle: document.getElementById("heroTitle"),
   heroText: document.getElementById("heroText"),
-  heroProgress: document.getElementById("heroProgress"),
-  heroProgressBar: document.getElementById("heroProgressBar"),
-  heroProgressText: document.getElementById("heroProgressText"),
   projectCount: document.getElementById("projectCount"),
   formatCount: document.getElementById("formatCount"),
   stepCount: document.getElementById("stepCount"),
@@ -441,8 +438,19 @@ async function apiFetch(path, options = {}) {
 
 function setBusy(isBusy) {
   state.busy = isBusy;
-  document.querySelectorAll("button, input, select, textarea").forEach((element) => {
-    element.disabled = isBusy;
+  const openModal = document.querySelector(".modal:not(.hidden)");
+  const root = openModal || document;
+  root.querySelectorAll("button, input, select, textarea").forEach((element) => {
+    if (isBusy) {
+      if (element.disabled) return;
+      element.disabled = true;
+      element.dataset.busyDisabled = "true";
+      return;
+    }
+    if (element.dataset.busyDisabled === "true") {
+      element.disabled = false;
+      delete element.dataset.busyDisabled;
+    }
   });
 }
 
@@ -482,6 +490,84 @@ function clearFlash() {
   }
   elements.flash.className = "flash hidden";
   elements.flash.innerHTML = "";
+}
+
+function applyTheme(theme) {
+  const nextTheme = theme || "light";
+  if (nextTheme === "light") {
+    document.documentElement.removeAttribute("data-theme");
+  } else {
+    document.documentElement.setAttribute("data-theme", nextTheme);
+  }
+  localStorage.setItem("ppt-master-theme", nextTheme);
+  const themeSelect = document.getElementById("themeSelect");
+  if (themeSelect) {
+    themeSelect.value = nextTheme;
+  }
+}
+
+function hasUnsavedModelConfigChanges() {
+  if (!elements.modelConfigModal || elements.modelConfigModal.classList.contains("hidden")) return false;
+  const draft = state.modal.draft || createDraft();
+  const current = {
+    name: elements.modalProfileNameInput?.value?.trim() || "",
+    backend: elements.modalBackendSelect?.value || "openai",
+    base_url: elements.modalBaseUrlInput?.value?.trim() || "",
+    selected_model: elements.modalFetchedModelSelect?.value || "",
+    manual_model: elements.modalManualModelInput?.value?.trim() || "",
+    api_key: elements.modalApiKeyInput?.value?.trim() || "",
+  };
+  return current.name !== (draft.name || "")
+    || current.backend !== (draft.backend || "openai")
+    || current.base_url !== (draft.base_url || "")
+    || current.selected_model !== (draft.selected_model || "")
+    || current.manual_model !== (draft.manual_model || "")
+    || Boolean(current.api_key);
+}
+
+function hasUnsavedImageModelChanges() {
+  if (!elements.imageModelModal || elements.imageModelModal.classList.contains("hidden")) return false;
+  const draft = state.imageModal.draft || {};
+  const current = {
+    name: elements.imageProfileNameInput?.value?.trim() || "",
+    backend: elements.imageBackendSelect?.value || "gemini",
+    base_url: elements.imageBaseUrlInput?.value?.trim() || "",
+    manual_model: elements.imageManualModelInput?.value?.trim() || "",
+    selected_model: elements.imageModelSelect?.value || "",
+    api_key: elements.imageApiKeyInput?.value?.trim() || "",
+  };
+  const draftModel = draft.model || "";
+  return current.name !== (draft.name || "")
+    || current.backend !== (draft.backend || "gemini")
+    || current.base_url !== (draft.base_url || "")
+    || (current.manual_model || current.selected_model) !== draftModel
+    || Boolean(current.api_key);
+}
+
+function hasUnsavedAccountSettingsChanges() {
+  if (!elements.accountSettingsModal || elements.accountSettingsModal.classList.contains("hidden") || !state.user) return false;
+  const displayName = elements.accountDisplayNameInput?.value?.trim() || "";
+  const currentPassword = elements.accountCurrentPasswordInput?.value || "";
+  const newPassword = elements.accountNewPasswordInput?.value || "";
+  return displayName !== (state.user.display_name || "")
+    || Boolean(currentPassword)
+    || Boolean(newPassword);
+}
+
+function hasUnsavedStageChanges() {
+  if (!elements.stageBody) return false;
+  const fields = elements.stageBody.querySelectorAll("input, textarea, select");
+  return Array.from(fields).some((field) => {
+    if (field.disabled) return false;
+    if (field.type === "checkbox" || field.type === "radio") {
+      return field.checked !== field.defaultChecked;
+    }
+    return field.value !== field.defaultValue;
+  });
+}
+
+function confirmDiscardChanges(message) {
+  return window.confirm(message || "当前还有未保存的修改，确认直接离开吗？");
 }
 
 function classifyLogTone(title, payload) {
@@ -580,17 +666,6 @@ function renderHeroStatus(overrides = {}) {
     elements.heroStatusPill.dataset.tone = statusMeta.tone;
     elements.heroStatusPill.classList.remove("hidden");
   }
-  if (elements.heroProgress && elements.heroProgressBar && elements.heroProgressText) {
-    if (!project) {
-      elements.heroProgress.classList.add("hidden");
-    } else {
-      const health = getProjectHealth(project);
-      elements.heroProgress.classList.remove("hidden");
-      elements.heroProgressBar.style.width = `${health.percent}%`;
-      elements.heroProgressText.textContent = `${health.completed}/${health.total} · ${health.percent}%`;
-    }
-  }
-
   if (!project) {
     elements.heroTitle.textContent = DEFAULT_HERO_TITLE;
     elements.heroTitle.title = DEFAULT_HERO_TITLE;
@@ -1296,7 +1371,10 @@ function openModelConfigModal() {
   trapFocus(elements.modelConfigModal);
 }
 
-function closeModelConfigModal() {
+function closeModelConfigModal(force = false) {
+  if (!force && hasUnsavedModelConfigChanges() && !confirmDiscardChanges("模型设置还有未保存的修改，确认关闭吗？")) {
+    return;
+  }
   elements.modelConfigModal?.classList.add("hidden");
   elements.modelConfigModal?.setAttribute("aria-hidden", "true");
   releaseFocus();
@@ -1350,7 +1428,10 @@ function openAccountSettingsModal() {
   trapFocus(elements.accountSettingsModal);
 }
 
-function closeAccountSettingsModal() {
+function closeAccountSettingsModal(force = false) {
+  if (!force && hasUnsavedAccountSettingsChanges() && !confirmDiscardChanges("账号设置还有未保存的修改，确认关闭吗？")) {
+    return;
+  }
   elements.accountSettingsModal?.classList.add("hidden");
   elements.accountSettingsModal?.setAttribute("aria-hidden", "true");
   releaseFocus();
@@ -1367,7 +1448,10 @@ function openImageModelModal() {
   trapFocus(elements.imageModelModal);
 }
 
-function closeImageModelModal() {
+function closeImageModelModal(force = false) {
+  if (!force && hasUnsavedImageModelChanges() && !confirmDiscardChanges("图片设置还有未保存的修改，确认关闭吗？")) {
+    return;
+  }
   elements.imageModelModal?.classList.add("hidden");
   elements.imageModelModal?.setAttribute("aria-hidden", "true");
   releaseFocus();
@@ -1750,24 +1834,22 @@ function renderProjectContext() {
   }
 
   const health = getProjectHealth(project);
-  const blockerItems = health.blockers.length === 0
-    ? `<li>当前没有明显阻塞，可以继续往下走。</li>`
-    : health.blockers.slice(0, 3).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
   const nextStepLabel = truncateText(health.nextStepLabel, 120);
+  const blockerSummary = health.blockerCount > 0
+    ? truncateText(health.blockers[0], 42)
+    : "当前没有明显阻塞";
 
   elements.projectContext.innerHTML = `
     <div class="context-card">
       <div class="context-grid">
         <div class="context-main">
-          <div class="context-top">
-            <div>
-              <h3 class="context-title" title="${escapeHtml(project.name)}">${escapeHtml(project.name)}</h3>
-              <p class="context-text" title="${escapeHtml(health.nextStepLabel)}">${escapeHtml(nextStepLabel)}</p>
-            </div>
-            <div class="action-row context-actions">
-              <button class="button button-ghost button-small" data-context-action="refresh" title="刷新当前项目状态">刷新</button>
-              <button class="button button-ghost button-small" data-context-action="validate" title="校验当前项目结构">校验</button>
-            </div>
+          <div class="context-primary">
+            <h3 class="context-title" title="${escapeHtml(project.name)}">${escapeHtml(project.name)}</h3>
+            <p class="context-text" title="${escapeHtml(health.nextStepLabel)}">${escapeHtml(nextStepLabel)}</p>
+          </div>
+          <div class="action-row context-actions">
+            <button class="button button-ghost button-small" data-context-action="refresh" title="刷新当前项目状态">刷新</button>
+            <button class="button button-ghost button-small" data-context-action="validate" title="校验当前项目结构">校验</button>
           </div>
           <div class="badge-row badge-row-compact">
             ${metric("format", project.canvas_label, true)}
@@ -1788,12 +1870,10 @@ function renderProjectContext() {
           <div class="progress-track" role="progressbar" aria-valuenow="${health.percent}" aria-valuemax="100" aria-label="项目进度 ${health.percent}%">
             <span class="progress-fill" style="width: ${health.percent}%"></span>
           </div>
-          ${health.blockerCount > 0 ? `
-            <div class="context-blockers">
-              <p class="context-summary-label">阻塞 ${health.blockerCount}</p>
-              <ul class="context-list">${health.blockers.slice(0, 2).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
-            </div>
-          ` : ""}
+          <div class="context-blocker-inline" title="${escapeHtml(health.blockers.join("；") || blockerSummary)}">
+            <span class="context-summary-label">${health.blockerCount > 0 ? `阻塞 ${health.blockerCount}` : "状态"}</span>
+            <span>${escapeHtml(blockerSummary)}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -4428,6 +4508,11 @@ function resetProjectSpecificState() {
 
 async function selectProject(projectName, options = {}) {
   try {
+    if (state.selectedProject?.name && state.selectedProject.name !== projectName && hasUnsavedStageChanges()) {
+      if (!confirmDiscardChanges("当前步骤里还有未保存的内容，确认切换到其他项目吗？")) {
+        return;
+      }
+    }
     clearFlash();
     setBusy(true);
 
@@ -5796,20 +5881,24 @@ async function bootstrap() {
     setBusy(true);
     setupPasswordToggles(document);
     setupInlineValidation(document);
+    window.addEventListener("beforeunload", (event) => {
+      if (
+        hasUnsavedModelConfigChanges()
+        || hasUnsavedImageModelChanges()
+        || hasUnsavedAccountSettingsChanges()
+        || hasUnsavedStageChanges()
+      ) {
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    });
     // Load saved theme
     const savedTheme = localStorage.getItem("ppt-master-theme") || "light";
-    document.documentElement.setAttribute("data-theme", savedTheme === "light" ? "" : savedTheme);
+    applyTheme(savedTheme);
     const themeSelect = document.getElementById("themeSelect");
     if (themeSelect) {
-      themeSelect.value = savedTheme;
       themeSelect.addEventListener("change", (event) => {
-        const theme = event.target.value;
-        if (theme === "light") {
-          document.documentElement.removeAttribute("data-theme");
-        } else {
-          document.documentElement.setAttribute("data-theme", theme);
-        }
-        localStorage.setItem("ppt-master-theme", theme);
+        applyTheme(event.target.value);
       });
     }
     elements.openModelConfigButton?.addEventListener("click", openModelConfigModal);
